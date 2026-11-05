@@ -29,10 +29,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        // A committed debug-only keystore, so APKs built locally and on CI share
+        // one signature and install as updates over each other. Without it each
+        // environment auto-generates its own key and Android refuses the update.
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
