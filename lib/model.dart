@@ -19,15 +19,12 @@ const dayLayouts = [
   ('daily', 'Daily'), ('gridnote', 'Grid note'), ('drafting', 'Drafting'), ('modular', 'Modular'), ('routine', 'Routine'), ('checklist', 'Check list'),
 ];
 
-/// Built-in stickers: asset name -> width/height aspect.
-const builtinStickers = {'star': 1.0, 'heart': 1.0, 'cloud': 1.3, 'tape': 3.0, 'sparkle': 1.0, 'bunny': .85};
-
-/// Width/height of any sticker: `b:<basic>`, `b:<pack>/<nn>` or `u:<id>`.
+/// Width/height of any sticker: `b:<pack>/<nn>` or `u:<id>`.
 double stickerAspect(String key, Map<String, double> lib) {
   final k = key.substring(2);
   if (key.startsWith('u:')) return lib[k] ?? 1;
   final slash = k.indexOf('/');
-  if (slash < 0) return builtinStickers[k] ?? 1;
+  if (slash < 0) return 1;
   final pack = stickerPacks.where((p) => p.$1 == k.substring(0, slash)).firstOrNull;
   return pack?.$3.where((e) => e.$1 == k.substring(slash + 1)).firstOrNull?.$2 ?? 1;
 }
@@ -115,6 +112,12 @@ class ZineStore {
         // 1.0.3 had one setting, for the bottom.
         deadBottom = (j['deadBottom'] as num? ?? j['deadZone'] as num?)?.toDouble() ?? 0;
         (j['weeks'] as Map).forEach((k, v) => weeks[k] = [for (final p in v) ZPage.fromJson(Map<String, dynamic>.from(p))]);
+        // Up to 1.0.5 there were six drawn stickers ('b:star'…); they're gone.
+        for (final w in weeks.values) {
+          for (final p in w) {
+            p.stickers.removeWhere((s) => s.src.startsWith('b:') && !s.src.contains('/'));
+          }
+        }
         (j['lib'] as Map? ?? {}).forEach((k, v) => lib[k] = (v as num).toDouble());
       }
     } catch (_) {

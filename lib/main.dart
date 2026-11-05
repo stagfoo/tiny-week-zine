@@ -8,26 +8,23 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final store = await ZineStore.open();
   final images = Images(store);
-  for (final k in builtinStickers.keys) {
-    images.load('b:$k');
-  }
   for (final id in store.lib.keys) {
     images.load('u:$id');
   }
   runApp(ZineApp(store: store, images: images));
 }
 
-/// Colour tokens, light and dark.
+/// Colour tokens, light and dark: paper, ink, hairlines, one accent.
 class Zc extends ThemeExtension<Zc> {
-  const Zc({required this.bg, required this.surface, required this.fg, required this.muted, required this.line, required this.accent, required this.accentInk});
-  final Color bg, surface, fg, muted, line, accent, accentInk;
+  const Zc({required this.bg, required this.surface, required this.fg, required this.muted, required this.line, required this.soft, required this.accent, required this.accentInk});
+  final Color bg, surface, fg, muted, line, soft, accent, accentInk;
 
   static const light = Zc(
-      bg: Color(0xFFEBE9F2), surface: Color(0xFFF7F6FB), fg: Color(0xFF231D38), muted: Color(0xFF67617E),
-      line: Color(0xFFD4D0E2), accent: Color(0xFFE2328B), accentInk: Colors.white);
+      bg: Color(0xFFEEEBE3), surface: Color(0xFFF6F4EE), fg: Color(0xFF141413), muted: Color(0xFF6E6A61),
+      line: Color(0xFF141413), soft: Color(0xFFD5D0C5), accent: Color(0xFFE2328B), accentInk: Colors.white);
   static const dark = Zc(
-      bg: Color(0xFF15121E), surface: Color(0xFF211D2E), fg: Color(0xFFECE8F6), muted: Color(0xFFA59FBE),
-      line: Color(0xFF3A3450), accent: Color(0xFFFF62AD), accentInk: Color(0xFF1A0D16));
+      bg: Color(0xFF151513), surface: Color(0xFF1D1C19), fg: Color(0xFFECE9E1), muted: Color(0xFF9B978D),
+      line: Color(0xFFECE9E1), soft: Color(0xFF36342F), accent: Color(0xFFFF62AD), accentInk: Color(0xFF1A0D16));
 
   static Zc of(BuildContext context) => Theme.of(context).extension<Zc>()!;
 
@@ -37,13 +34,33 @@ class Zc extends ThemeExtension<Zc> {
   Zc lerp(Zc? other, double t) => t < .5 ? this : (other ?? this);
 }
 
+/// Headline type: heavy condensed uppercase.
+const fHead = 'ArchivoX';
+
+/// Small uppercase monospace label.
+TextStyle monoLabel(Zc z, {Color? color, double size = 10.5}) =>
+    TextStyle(fontFamily: 'PlexMono', fontWeight: FontWeight.w500, fontSize: size, letterSpacing: 1.1, height: 1.3, color: color ?? z.muted);
+
 ThemeData _theme(Zc z, Brightness b) => ThemeData(
       brightness: b,
-      fontFamily: 'ZenMaru',
+      fontFamily: 'Archivo',
       scaffoldBackgroundColor: z.bg,
-      colorScheme: ColorScheme.fromSeed(seedColor: z.accent, brightness: b, primary: z.accent, surface: z.surface),
+      colorScheme: ColorScheme.fromSeed(seedColor: z.fg, brightness: b, primary: z.fg, onPrimary: z.bg, surface: z.surface, onSurface: z.fg),
       extensions: [z],
-      snackBarTheme: SnackBarThemeData(backgroundColor: z.fg, contentTextStyle: TextStyle(color: z.bg, fontFamily: 'ZenMaru', fontWeight: FontWeight.w500)),
+      splashFactory: NoSplash.splashFactory,
+      snackBarTheme: SnackBarThemeData(
+          backgroundColor: z.fg,
+          shape: const RoundedRectangleBorder(),
+          contentTextStyle: TextStyle(color: z.bg, fontFamily: 'PlexMono', fontWeight: FontWeight.w500, fontSize: 12.5)),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: z.fg,
+        inactiveTrackColor: z.soft,
+        thumbColor: z.fg,
+        overlayColor: z.fg.withValues(alpha: .08),
+        trackHeight: 2,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, elevation: 0, pressedElevation: 0),
+      ),
+      datePickerTheme: DatePickerThemeData(backgroundColor: z.surface, shape: RoundedRectangleBorder(side: BorderSide(color: z.line))),
     );
 
 class ZineApp extends StatelessWidget {
@@ -67,43 +84,30 @@ void toast(BuildContext context, String m) {
   sm.showSnackBar(SnackBar(content: Text(m), behavior: SnackBarBehavior.floating, duration: const Duration(milliseconds: 3200)));
 }
 
-/// The pink button with a hard ink shadow.
-class PinkButton extends StatefulWidget {
-  const PinkButton({super.key, required this.label, required this.onTap});
+/// Primary action: solid ink, square, with an arrow.
+class PrimaryButton extends StatelessWidget {
+  const PrimaryButton({super.key, required this.label, required this.onTap});
   final String label;
   final VoidCallback? onTap;
 
   @override
-  State<PinkButton> createState() => _PinkButtonState();
-}
-
-class _PinkButtonState extends State<PinkButton> {
-  bool down = false;
-
-  @override
   Widget build(BuildContext context) {
     final z = Zc.of(context);
-    final off = down ? 1.0 : 3.0;
-    return GestureDetector(
-      onTapDown: (_) => setState(() => down = true),
-      onTapUp: (_) => setState(() => down = false),
-      onTapCancel: () => setState(() => down = false),
-      onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
-        transform: Matrix4.translationValues(3 - off, 3 - off, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: widget.onTap == null ? z.muted : z.accent,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [BoxShadow(color: z.fg, offset: Offset(off, off))],
+    return Material(
+      color: onTap == null ? z.muted : z.fg,
+      child: InkWell(
+        onTap: onTap,
+        hoverColor: z.accent.withValues(alpha: .25),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Text('${label.toUpperCase()}  →', style: monoLabel(z, color: z.bg, size: 12).copyWith(fontWeight: FontWeight.w600)),
         ),
-        child: Text(widget.label, style: TextStyle(color: z.accentInk, fontWeight: FontWeight.w700, fontSize: 16)),
       ),
     );
   }
 }
 
+/// Secondary action: hairline box.
 class GhostButton extends StatelessWidget {
   const GhostButton({super.key, required this.label, required this.onTap});
   final String label;
@@ -113,16 +117,64 @@ class GhostButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final z = Zc.of(context);
     return Material(
-      color: z.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: z.line)),
+      color: Colors.transparent,
+      shape: Border.all(color: z.line),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
+        hoverColor: z.soft.withValues(alpha: .6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Text(label, style: TextStyle(color: z.fg, fontWeight: FontWeight.w700)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          child: Text(label.toUpperCase(), style: monoLabel(z, color: z.fg, size: 11)),
         ),
       ),
+    );
+  }
+}
+
+/// A ruled section: a label strip over its body, like a spec table.
+class Section extends StatelessWidget {
+  const Section({super.key, required this.label, this.meta, required this.child, this.pad = const EdgeInsets.all(12)});
+  final String label;
+  final String? meta;
+  final Widget child;
+  final EdgeInsets pad;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = Zc.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(border: Border.all(color: z.line)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: z.line))),
+          child: Row(children: [
+            Expanded(child: Text(label.toUpperCase(), style: monoLabel(z, color: z.fg).copyWith(fontWeight: FontWeight.w600))),
+            if (meta != null) Text(meta!.toUpperCase(), style: monoLabel(z)),
+          ]),
+        ),
+        Padding(padding: pad, child: child),
+      ]),
+    );
+  }
+}
+
+/// One row of a spec table: label on the left, value on the right.
+class SpecRow extends StatelessWidget {
+  const SpecRow(this.label, this.value, {super.key, this.last = false});
+  final String label, value;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final z = Zc.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      decoration: BoxDecoration(border: last ? null : Border(bottom: BorderSide(color: z.soft))),
+      child: Row(children: [
+        Expanded(child: Text(label.toUpperCase(), style: monoLabel(z))),
+        Text(value.toUpperCase(), style: monoLabel(z, color: z.fg)),
+      ]),
     );
   }
 }

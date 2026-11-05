@@ -45,14 +45,14 @@ class _EditorState extends State<Editor> {
   _Gesture? g;
   (String, String)? _hit; // set by a sticker part on pointer down, read by the stage
   final _focus = FocusNode();
-  String pack = 'basics'; // sticker pack shown in the tray
+  String pack = stickerPacks.first.$1; // sticker pack shown in the tray
 
   @override
   void initState() {
     super.initState();
     st.onWarn = (m) => toast(context, m);
     // Repaint once sticker images finish decoding.
-    Future.wait([for (final k in builtinStickers.keys) widget.images.load('b:$k'), for (final id in st.lib.keys) widget.images.load('u:$id')])
+    Future.wait([for (final k in _packKeys()) widget.images.load(k), for (final id in st.lib.keys) widget.images.load('u:$id')])
         .then((_) => mounted ? setState(() {}) : null);
   }
 
@@ -205,27 +205,26 @@ class _EditorState extends State<Editor> {
           backgroundColor: z.bg,
           body: SafeArea(
             child: LayoutBuilder(builder: (context, c) {
-              final wide = c.maxWidth >= 820;
+              final wide = c.maxWidth >= 860;
               return SingleChildScrollView(
                 physics: g != null ? const NeverScrollableScrollPhysics() : null,
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 980),
+                    constraints: const BoxConstraints(maxWidth: 1040),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      _header(z),
-                      const SizedBox(height: 14),
+                      _header(z, c.maxWidth >= 600),
                       _tabs(z),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       if (wide)
                         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          SizedBox(width: 470, child: LayoutBuilder(builder: (_, cc) => _stage(z, cc.maxWidth))),
-                          const SizedBox(width: 18),
+                          SizedBox(width: 500, child: LayoutBuilder(builder: (_, cc) => _stage(z, cc.maxWidth))),
+                          const SizedBox(width: 20),
                           Expanded(child: _panel(z)),
                         ])
                       else ...[
                         LayoutBuilder(builder: (_, cc) => _stage(z, cc.maxWidth)),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 16),
                         _panel(z),
                       ],
                     ]),
@@ -239,74 +238,84 @@ class _EditorState extends State<Editor> {
     );
   }
 
-  Widget _header(Zc z) {
-    final mono = TextStyle(fontFamily: fMono, fontSize: 11, letterSpacing: .8, color: z.muted);
-    return Wrap(alignment: WrapAlignment.spaceBetween, crossAxisAlignment: WrapCrossAlignment.end, spacing: 12, runSpacing: 10, children: [
-      Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text('Tiny Week Zine', style: TextStyle(fontFamily: 'Mochiy', fontSize: 21, height: 1.1, color: z.fg)),
-        const SizedBox(height: 4),
-        Text('8 PAGES · ONE A4 SHEET · ONE CUT', style: mono.copyWith(fontSize: 10.5)),
-      ]),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Text('WEEK OF', style: mono),
-        const SizedBox(width: 8),
-        Material(
-          color: z.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: z.line)),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () async {
-              final d = await showDatePicker(context: context, initialDate: parseKey(st.cur), firstDate: DateTime(2000), lastDate: DateTime(2100));
-              if (d == null) return;
-              setState(() {
-                st.setWeek(d);
-                sel = null;
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-              child: Text('${fmtD(parseKey(st.cur))} ${parseKey(st.cur).year}', style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w500, fontSize: 13.5, color: z.fg)),
-            ),
-          ),
-        ),
-      ]),
-    ]);
+  Future<void> _pickWeek() async {
+    final d = await showDatePicker(context: context, initialDate: parseKey(st.cur), firstDate: DateTime(2000), lastDate: DateTime(2100));
+    if (d == null) return;
+    setState(() {
+      st.setWeek(d);
+      sel = null;
+    });
   }
 
+  /// Ruled top bar: wordmark, what it is, and the week.
+  Widget _header(Zc z, bool roomy) {
+    final ds = st.dates;
+    final rule = VerticalDivider(width: 1, thickness: 1, color: z.line);
+    return DecoratedBox(
+      decoration: BoxDecoration(border: Border.all(color: z.line)),
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 18, 12),
+            child: Text('TINY WEEK\nZINE', style: TextStyle(fontFamily: fHead, fontWeight: FontWeight.w800, fontSize: 26, height: .92, color: z.fg)),
+          ),
+          if (roomy) ...[
+            rule,
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text('8 PAGES\nONE A4 SHEET\nONE CUT', style: monoLabel(z)),
+            ),
+          ],
+          const Spacer(),
+          rule,
+          InkWell(
+            onTap: _pickWeek,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 16, 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('WEEK ${isoWeek(ds[0])}  ↓', style: monoLabel(z)),
+                const SizedBox(height: 4),
+                Text('${fmtD(ds[0])} – ${fmtD(ds[6])}', style: monoLabel(z, color: z.fg, size: 12.5).copyWith(fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  /// The eight pages as one ruled row.
   Widget _tabs(Zc z) {
     final ds = st.dates;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: [
-        for (var i = 0; i < 8; i++)
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Material(
-              color: i == cur ? z.fg : z.surface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: i == cur ? z.fg : z.line)),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => setState(() {
-                  cur = i;
-                  sel = null;
-                }),
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 48),
-                  padding: const EdgeInsets.fromLTRB(9, 5, 9, 6),
-                  child: DefaultTextStyle(
-                    style: TextStyle(fontFamily: fMono, fontSize: 10, letterSpacing: .6, color: i == cur ? z.bg : z.muted, fontWeight: FontWeight.w500),
+    return DecoratedBox(
+      decoration: BoxDecoration(border: Border(left: BorderSide(color: z.line), right: BorderSide(color: z.line), bottom: BorderSide(color: z.line))),
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (var i = 0; i < 8; i++) ...[
+            if (i > 0) VerticalDivider(width: 1, thickness: 1, color: z.line),
+            Expanded(
+              child: Material(
+                color: i == cur ? z.fg : Colors.transparent,
+                child: InkWell(
+                  onTap: () => setState(() {
+                    cur = i;
+                    sel = null;
+                  }),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(i == 0 ? 'COVER' : days[i - 1]),
+                      Text(i == 0 ? 'COVER' : days[i - 1], style: monoLabel(z, color: i == cur ? z.bg : z.muted, size: 9.5)),
+                      const SizedBox(height: 3),
                       Text(i == 0 ? 'W${isoWeek(ds[0])}' : '${ds[i - 1].day}',
-                          style: TextStyle(fontFamily: 'ZenMaru', fontWeight: FontWeight.w700, fontSize: 14.5, letterSpacing: 0, color: i == cur ? z.bg : z.fg)),
-                      Opacity(opacity: .75, child: Text('p${i + 1}', style: const TextStyle(fontSize: 9))),
+                          style: TextStyle(fontFamily: fHead, fontWeight: FontWeight.w800, fontSize: 20, height: 1, color: i == cur ? z.bg : z.fg)),
                     ]),
                   ),
                 ),
               ),
             ),
-          ),
-      ]),
+          ],
+        ]),
+      ),
     );
   }
 
@@ -338,7 +347,7 @@ class _EditorState extends State<Editor> {
                 width: w,
                 height: h,
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: z.accent, offset: const Offset(7, 7))]),
+                  decoration: BoxDecoration(color: Colors.white, border: Border.all(color: z.line), boxShadow: [BoxShadow(color: z.line, offset: const Offset(6, 6))]),
                   child: CustomPaint(
                     painter: PagePainter(
                         pn: cur + 1, page: page, dates: st.dates, editor: true,
@@ -362,9 +371,9 @@ class _EditorState extends State<Editor> {
           child: Listener(onPointerDown: (_) => _hit = (s.id, kind), child: child),
         );
     Widget knob(Color fill, Widget child) => Container(
-          width: 30,
-          height: 30,
-          decoration: BoxDecoration(color: fill, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(color: fill, border: Border.all(color: Colors.white, width: 1.5)),
           alignment: Alignment.center,
           child: child,
         );
@@ -396,8 +405,8 @@ class _EditorState extends State<Editor> {
           ),
           if (on)
             Positioned(
-              right: _p - 15,
-              bottom: _p - 15,
+              right: _p - 14,
+              bottom: _p - 14,
               child: part(
                 'handle',
                 MouseRegion(
@@ -408,8 +417,8 @@ class _EditorState extends State<Editor> {
             ),
           if (on)
             Positioned(
-              left: _p - 15,
-              top: _p - 15,
+              left: _p - 14,
+              top: _p - 14,
               child: Semantics(
                 button: true,
                 label: 'Remove sticker',
@@ -421,174 +430,165 @@ class _EditorState extends State<Editor> {
     );
   }
 
-  List<String> _packKeys() => switch (pack) {
-        'basics' => [for (final b in builtinStickers.keys) 'b:$b'],
-        'yours' => [for (final id in st.lib.keys.toList().reversed) 'u:$id'],
-        _ => [for (final (n, _) in stickerPacks.firstWhere((p) => p.$1 == pack).$3) 'b:$pack/$n'],
-      };
+  List<String> _packKeys() => pack == 'yours'
+      ? [for (final id in st.lib.keys.toList().reversed) 'u:$id']
+      : [for (final (n, _) in stickerPacks.firstWhere((p) => p.$1 == pack).$3) 'b:$pack/$n'];
 
   void _openPack(String id) {
     setState(() => pack = id);
     Future.wait([for (final k in _packKeys()) widget.images.load(k)]).then((_) => mounted ? setState(() {}) : null);
   }
 
-  Widget _packChips(Zc z) {
-    final packs = [('basics', 'Basics'), if (st.lib.isNotEmpty) ('yours', 'Yours'), for (final p in stickerPacks) (p.$1, p.$2)];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: [
-        for (final (id, name) in packs)
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Material(
-              color: id == pack ? z.fg : z.surface,
-              shape: StadiumBorder(side: BorderSide(color: id == pack ? z.fg : z.line)),
-              child: InkWell(
-                customBorder: const StadiumBorder(),
-                onTap: () => _openPack(id),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: id == pack ? z.bg : z.muted)),
-                ),
-              ),
-            ),
+  /// A square hairline tag, filled when chosen.
+  Widget _tag(Zc z, String label, bool on, VoidCallback onTap) => Material(
+        color: on ? z.fg : Colors.transparent,
+        shape: Border.all(color: z.line),
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            child: Text(label.toUpperCase(), style: monoLabel(z, color: on ? z.bg : z.fg, size: 10.5)),
           ),
-      ]),
-    );
-  }
-
-  Widget _label(Zc z, String t) =>
-      Text(t.toUpperCase(), style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 10.5, letterSpacing: 1.4, color: z.muted));
-  Widget _hint(Zc z, String t) => ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Text(t, style: TextStyle(fontSize: 13, color: z.muted, height: 1.45)),
+        ),
       );
 
   Widget _panel(Zc z) {
     final ds = st.dates;
     final curLay = page.layout ?? (cur > 0 ? 'daily' : 'blank');
-    final tile = BoxDecoration(color: z.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: z.line));
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _label(z, 'Layout'),
-      const SizedBox(height: 8),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [
-          for (final (id, name) in cur > 0 ? dayLayouts : coverLayouts)
-            Padding(
-              key: ValueKey(id),
-              padding: const EdgeInsets.only(right: 10),
-              child: Material(
-                color: z.surface,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12), side: BorderSide(color: id == curLay ? z.accent : z.line, width: id == curLay ? 2 : 1)),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    setState(() {
-                      page.layout = id;
-                      if (cur > 0) {
-                        st.defDay = id;
-                      } else {
-                        st.defCover = id;
-                      }
-                    });
-                    _save();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 7),
-                    child: Column(children: [
-                      Container(
-                        decoration: BoxDecoration(color: Colors.white, border: Border.all(color: z.line)),
-                        child: SizedBox(
-                          width: 64,
-                          height: 90.5,
-                          child: CustomPaint(painter: PagePainter(pn: cur + 1, page: page, dates: ds, layoutOverride: id, stamp: '${st.cur}|$cur')),
-                        ),
+    final packs = [if (st.lib.isNotEmpty) ('yours', 'Yours'), for (final p in stickerPacks) (p.$1, p.$2)];
+    final keys = _packKeys();
+    final desktop = kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Section(
+        label: 'Layout',
+        meta: cur == 0 ? 'cover · page 1' : '${days[cur - 1]} · page ${cur + 1}',
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(spacing: 10, runSpacing: 12, children: [
+            for (final (id, name) in cur > 0 ? dayLayouts : coverLayouts)
+              GestureDetector(
+                key: ValueKey(id),
+                onTap: () {
+                  setState(() {
+                    page.layout = id;
+                    if (cur > 0) {
+                      st.defDay = id;
+                    } else {
+                      st.defCover = id;
+                    }
+                  });
+                  _save();
+                },
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Column(children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: id == curLay ? z.line : z.soft, width: id == curLay ? 2 : 1),
+                        boxShadow: id == curLay ? [BoxShadow(color: z.line, offset: const Offset(3, 3))] : null,
                       ),
-                      const SizedBox(height: 6),
-                      Text(name,
-                          style: TextStyle(
-                              fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 11, color: id == curLay ? z.fg : z.muted)),
-                    ]),
-                  ),
+                      child: SizedBox(
+                        width: 64,
+                        height: 90.5,
+                        child: CustomPaint(painter: PagePainter(pn: cur + 1, page: page, dates: ds, layoutOverride: id, stamp: '${st.cur}|$cur')),
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Container(
+                      color: id == curLay ? z.fg : Colors.transparent,
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      child: Text(name.toUpperCase(), style: monoLabel(z, color: id == curLay ? z.bg : z.muted, size: 9.5)),
+                    ),
+                  ]),
+                ),
+              ),
+          ]),
+          if (cur > 0) ...[
+            const SizedBox(height: 14),
+            GhostButton(
+              label: 'Use on all 7 days',
+              onTap: () {
+                setState(() {
+                  for (final p in st.week.skip(1)) {
+                    p.layout = curLay;
+                  }
+                  st.defDay = curLay;
+                });
+                _save();
+                toast(context, 'All 7 days now use this layout.');
+              },
+            ),
+          ],
+        ]),
+      ),
+      const SizedBox(height: 16),
+      Section(
+        label: 'Stickers',
+        meta: '${keys.length} in ${packs.firstWhere((p) => p.$1 == pack, orElse: () => packs.first).$2}',
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(spacing: 6, runSpacing: 6, children: [for (final (id, name) in packs) _tag(z, name, id == pack, () => _openPack(id))]),
+          const SizedBox(height: 12),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            Semantics(
+              button: true,
+              label: 'Add your own image',
+              child: InkWell(
+                onTap: pickImages,
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(border: Border.all(color: z.line)),
+                  alignment: Alignment.center,
+                  child: Text('+\nIMAGE', textAlign: TextAlign.center, style: monoLabel(z, color: z.fg, size: 10)),
                 ),
               ),
             ),
+            for (final k in keys)
+              Semantics(
+                button: true,
+                label: k.startsWith('u:') ? 'Add your image' : 'Add sticker',
+                child: InkWell(
+                  onTap: () => addSticker(k, stickerAspect(k, st.lib)),
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(color: z.surface, border: Border.all(color: z.soft)),
+                    child: widget.images.get(k) == null ? null : RawImage(image: widget.images.get(k), fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+          ]),
+          const SizedBox(height: 12),
+          Text(
+            desktop
+                ? 'Tap to add · drag to move · scroll or handle to resize · delete to remove'
+                : 'Tap to add · drag to move · pinch or handle to resize and turn',
+            style: monoLabel(z, size: 10),
+          ),
         ]),
       ),
-      if (cur > 0) ...[
-        const SizedBox(height: 8),
-        GhostButton(
-          label: 'Use this layout on all 7 days',
-          onTap: () {
-            setState(() {
-              for (final p in st.week.skip(1)) {
-                p.layout = curLay;
-              }
-              st.defDay = curLay;
-            });
-            _save();
-            toast(context, 'All 7 days now use this layout.');
-          },
-        ),
-      ],
-      const SizedBox(height: 8),
-      _hint(z, 'Everything prints blank, ready for pen.'),
-      const SizedBox(height: 18),
-      _label(z, 'Stickers & photos'),
-      const SizedBox(height: 8),
-      _packChips(z),
-      const SizedBox(height: 10),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: pickImages,
-          child: Container(
-            width: 62,
-            height: 62,
-            decoration: tile.copyWith(border: Border.all(color: z.accent)),
-            alignment: Alignment.center,
-            child: Text('+ PNG\nor photo',
-                textAlign: TextAlign.center, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w700, fontSize: 11, height: 1.15, color: z.accent)),
-          ),
-        ),
-        for (final k in _packKeys())
-          Semantics(
-            button: true,
-            label: k.startsWith('u:') ? 'Add your image' : 'Add sticker',
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => addSticker(k, stickerAspect(k, st.lib)),
-              child: Container(
-                width: 62,
-                height: 62,
-                padding: const EdgeInsets.all(6),
-                decoration: tile,
-                child: widget.images.get(k) == null ? null : RawImage(image: widget.images.get(k), fit: BoxFit.contain),
-              ),
+      const SizedBox(height: 16),
+      Section(
+        label: 'Print',
+        meta: 'one sheet · one cut',
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const SpecRow('Paper', 'A4 · single-sided'),
+          const SpecRow('Margins', 'spine 6mm · edge 8mm'),
+          const SpecRow('Pages print', 'blank, ready for pen', last: true),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: PrimaryButton(
+              label: 'Make print sheet',
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SheetScreen(store: st, images: widget.images))),
             ),
           ),
-      ]),
-      const SizedBox(height: 8),
-      _hint(
-          z,
-          'Tap a sticker to add it. Drag to move it, and pinch or drag the pink handle to resize and turn it. '
-          '${kIsWeb || defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.macOS ? 'With a mouse, scroll over the page to resize the selected sticker and press Delete to remove it.' : ''}'),
-      const SizedBox(height: 18),
-      Divider(color: z.line, height: 1),
-      const SizedBox(height: 14),
-      _label(z, 'Print'),
-      const SizedBox(height: 8),
-      PinkButton(
-        label: 'Make print sheet',
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SheetScreen(store: st, images: widget.images))),
+        ]),
       ),
-      const SizedBox(height: 8),
-      Wrap(spacing: 14, runSpacing: 4, children: [
-        for (final t in ['A4', 'single-sided', 'spine margin 6mm', 'edge margin 8mm'])
-          Text(t, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w500, fontSize: 11.5, color: z.muted)),
-      ]),
     ]);
   }
 }

@@ -18,7 +18,7 @@ void main() {
     t.view.physicalSize = const Size(1000, 1000);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
-    store.week[1].stickers.add(Sticker(id: 's', src: 'b:star', a: 1, x: 37, y: 50, w: 20, rot: 0));
+    store.week[1].stickers.add(Sticker(id: 's', src: 'b:bunny/01', a: 1, x: 37, y: 50, w: 20, rot: 0));
     await t.pumpWidget(ZineApp(store: store, images: images));
     await t.tap(find.text('MON'));
     await t.pump();
