@@ -76,8 +76,9 @@ class ZineStore {
   final Map<String, double> lib = {}; // user image id -> aspect
   String? defDay, defCover;
 
-  /// mm at the far end of the sheet this printer can't reach (0 = none).
-  double deadZone = 0;
+  /// mm this printer can't reach at the top of the portrait page (the
+  /// Friday end, fed first) and at the bottom (the cover end). 0 = none.
+  double deadTop = 0, deadBottom = 0;
   void Function(String message)? onWarn;
   bool _warned = false;
   Timer? _t;
@@ -96,7 +97,9 @@ class ZineStore {
         cur = j['cur'];
         defDay = j['defDay'];
         defCover = j['defCover'];
-        deadZone = (j['deadZone'] as num?)?.toDouble() ?? 0;
+        deadTop = (j['deadTop'] as num?)?.toDouble() ?? 0;
+        // 1.0.3 had one setting, for the bottom.
+        deadBottom = (j['deadBottom'] as num? ?? j['deadZone'] as num?)?.toDouble() ?? 0;
         (j['weeks'] as Map).forEach((k, v) => weeks[k] = [for (final p in v) ZPage.fromJson(Map<String, dynamic>.from(p))]);
         (j['lib'] as Map? ?? {}).forEach((k, v) => lib[k] = (v as num).toDouble());
       }
@@ -132,7 +135,8 @@ class ZineStore {
       'cur': cur,
       'defDay': defDay,
       'defCover': defCover,
-      'deadZone': deadZone,
+      'deadTop': deadTop,
+      'deadBottom': deadBottom,
       'weeks': weeks.map((k, v) => MapEntry(k, v.map((p) => p.toJson()).toList())),
       'lib': lib,
     };

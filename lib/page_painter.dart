@@ -375,23 +375,33 @@ class PagePainter extends CustomPainter {
 /// How far the trim line sits inside a printer's dead zone, so it still prints.
 const trimSafety = 4.0;
 
-/// Zine length along the sheet once the trim strip is cut off.
-double zineLength(double deadZone) => deadZone > 0 ? 297 - deadZone - trimSafety : 297;
+/// Ends that lose less than this are already covered by the pages' own
+/// margins (8mm+, less a little printer drift), so they get no strip.
+const stripMin = 6.0;
+
+/// Width of the strip to trim off an end that loses [dead] mm.
+double stripFor(double dead) => dead > stripMin ? dead + trimSafety : 0;
+
+/// Zine length along the sheet once any trim strips are cut off.
+double zineLength(double deadTop, double deadBottom) => 297 - stripFor(deadTop) - stripFor(deadBottom);
 
 /// Lays the eight pages out on a landscape A4 sheet at [s] px/mm, with fold
 /// ticks and the cut line. Classic one-cut mini zine; top row upside down.
 ///
-/// [deadZone] is how much of the sheet's far end (the cover/Monday end, which
-/// is the bottom of the portrait PDF page and leaves the printer last) the
-/// printer can't reach. When it's set, the zine is laid out on a shorter sheet
-/// and a TRIM line marks the strip to cut off before folding, so all eight
-/// panels stay the same size.
-Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images, double s, {double deadZone = 0}) async {
+/// The sheet's left end (Friday) becomes the top of the portrait PDF page and
+/// its right end (cover/Monday) the bottom. [deadTop] and [deadBottom] are how
+/// much of those ends the printer can't reach. An end that loses too much gets
+/// a strip marked by a TRIM line, cut off before folding, and the zine is laid
+/// out evenly on what's left, so all eight panels stay the same size.
+Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images, double s,
+    {double deadTop = 0, double deadBottom = 0}) async {
   const top = [5, 4, 3, 2], bot = [6, 7, 8, 1];
-  final len = zineLength(deadZone), q = len / 297, p = pw * q;
+  final a = stripFor(deadTop), len = zineLength(deadTop, deadBottom), q = len / 297, p = pw * q;
   final rec = ui.PictureRecorder();
   final c = Canvas(rec);
   c.drawRect(Rect.fromLTWH(0, 0, 297 * s, 210 * s), Paint()..color = Colors.white);
+  c.save();
+  c.translate(a * s, 0);
   for (var col = 0; col < 4; col++) {
     // Each page keeps its design and shrinks evenly into a narrower panel,
     // hanging from the middle fold.
@@ -425,16 +435,18 @@ Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images,
   c.drawPath(dashed(Path()..moveTo(p * s, ph * s)..lineTo(p * 3 * s, ph * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
   final cut = label('CUT');
   cut.paint(c, Offset(p * 2 * s - cut.width / 2, (ph + 2.6) * s - cut.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
-  if (deadZone > 0) {
-    c.drawPath(dashed(Path()..moveTo(len * s, 7 * s)..lineTo(len * s, 203 * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
-    final trim = label('TRIM THIS STRIP OFF FIRST');
+  // TRIM lines, labelled on the strip side.
+  final trim = label('TRIM THIS STRIP OFF FIRST');
+  for (final (x, side) in [if (a > 0) (0.0, -1.0), if (stripFor(deadBottom) > 0) (len, 1.0)]) {
+    c.drawPath(dashed(Path()..moveTo(x * s, 7 * s)..lineTo(x * s, 203 * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
     for (final y in [ph / 2, ph * 1.5]) {
       c.save();
-      c.translate((len + 1.2) * s, y * s);
-      c.rotate(math.pi / 2);
+      c.translate((x + side * 1.2) * s, y * s);
+      c.rotate(side * math.pi / 2);
       trim.paint(c, Offset(-trim.width / 2, -trim.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
       c.restore();
     }
   }
+  c.restore();
   return rec.endRecording().toImage((297 * s).round(), (210 * s).round());
 }

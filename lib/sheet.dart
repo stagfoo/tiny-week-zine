@@ -12,6 +12,9 @@ import 'images.dart';
 import 'main.dart';
 import 'model.dart';
 import 'page_painter.dart';
+import 'printer_check.dart';
+import 'printer_margins.dart';
+import 'test_page.dart';
 
 /// Builds the imposed A4 print sheet and offers it as a PDF to print or share.
 class SheetScreen extends StatefulWidget {
@@ -30,7 +33,7 @@ class _SheetScreenState extends State<SheetScreen> {
   Uint8List? pdf;
   bool failed = false;
   int _gen = 0; // newest build wins when the slider moves mid-build
-  late double dead = widget.store.deadZone;
+  late double top = widget.store.deadTop, bottom = widget.store.deadBottom;
 
   int get wk => isoWeek(widget.store.dates[0]);
   String get name => 'week-$wk-zine.pdf';
@@ -55,7 +58,7 @@ class _SheetScreenState extends State<SheetScreen> {
       await Future.wait([for (final p in w) for (final k in p.stickers) widget.images.load(k.src)]);
       setState(() => busy = 'Laying out pages…');
       await _tick();
-      final im = await renderSheet(w, widget.store.dates, widget.images, s, deadZone: widget.store.deadZone);
+      final im = await renderSheet(w, widget.store.dates, widget.images, s, deadTop: widget.store.deadTop, deadBottom: widget.store.deadBottom);
       if (!mounted || gen != _gen) return;
       setState(() {
         sheet = im;
@@ -83,6 +86,107 @@ class _SheetScreenState extends State<SheetScreen> {
     }
   }
 
+  void _setDead(double t, double b) {
+    widget.store
+      ..deadTop = t < .5 ? 0 : t
+      ..deadBottom = b < .5 ? 0 : b
+      ..save();
+    setState(() {
+      top = widget.store.deadTop;
+      bottom = widget.store.deadBottom;
+    });
+    _build();
+  }
+
+  Future<void> _testPage() async {
+    try {
+      await Printing.layoutPdf(onLayout: (_) => testPagePdf(), name: 'printer-check.pdf', format: PdfPageFormat.a4);
+    } catch (e) {
+      if (mounted) toast(context, 'Printing did not work here ($e).');
+    }
+  }
+
+  Future<void> _checkPrinters() async {
+    List<PrinterMargins> found;
+    try {
+      found = await checkPrinters();
+    } catch (e) {
+      if (mounted) toast(context, 'Could not reach the print service here ($e). Use the test page instead.');
+      return;
+    }
+    if (!mounted) return;
+    if (found.isEmpty) {
+      toast(context, 'No printers found. Use the test page instead.');
+      return;
+    }
+    final z = Zc.of(context);
+    final pick = await showModalBottomSheet<PrinterMargins>(
+      context: context,
+      backgroundColor: z.surface,
+      builder: (ctx) => SafeArea(
+        child: ListView(shrinkWrap: true, padding: const EdgeInsets.symmetric(vertical: 12), children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+            child: Text('Pick the printer you will print the zine on. It reports what it can\'t reach at each end.',
+                style: TextStyle(color: z.muted, fontSize: 13, height: 1.4)),
+          ),
+          for (final p in found)
+            ListTile(
+              title: Text(p.info.isNotEmpty && p.info != p.name ? '${p.info}  ·  ${p.name}' : p.name, style: TextStyle(color: z.fg, fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                'top ${p.top.toStringAsFixed(1)} mm · bottom ${p.bottom.toStringAsFixed(1)} mm'
+                '${stripFor(p.top) == 0 && stripFor(p.bottom) == 0 ? '  ·  no trimming needed' : '  ·  needs a trim strip'}',
+                style: TextStyle(fontFamily: fMono, fontSize: 12, color: z.muted),
+              ),
+              onTap: () => Navigator.pop(ctx, p),
+            ),
+        ]),
+      ),
+    );
+    if (pick == null || !mounted) return;
+    _setDead(pick.top, pick.bottom);
+    toast(context, 'Set from ${pick.name}. Print the zine to that same printer.');
+  }
+
+  Widget _printerSection(Zc z) {
+    final label = TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 10.5, letterSpacing: 1.4, color: z.muted);
+    Widget slider(String name, double v, void Function(double) onChanged, void Function(double) onEnd) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('$name  ${v.toStringAsFixed(1)} mm', style: label),
+            Slider(value: v, min: 0, max: 20, onChanged: onChanged, onChangeEnd: onEnd),
+          ],
+        );
+    final trims = [if (stripFor(top) > 0) 'the Friday end', if (stripFor(bottom) > 0) 'the cover end'];
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('PRINTER', style: label),
+        const SizedBox(height: 8),
+        Text(
+          'Printers can\'t reach the very ends of the paper. Set how many mm yours loses at each end of the page. '
+          'An end that loses more than ${stripMin.toStringAsFixed(0)} mm gets a strip to trim off first, so all eight pages stay the same size.',
+          style: TextStyle(fontSize: 13, color: z.muted, height: 1.45),
+        ),
+        const SizedBox(height: 10),
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          if (canCheckPrinters) GhostButton(label: 'Check printer', onTap: _checkPrinters),
+          GhostButton(label: 'Print test page', onTap: _testPage),
+        ]),
+        const SizedBox(height: 12),
+        slider('TOP OF PAGE · FRIDAY END', top, (v) => setState(() => top = v), (v) => _setDead(v, bottom)),
+        slider('BOTTOM OF PAGE · COVER END', bottom, (v) => setState(() => bottom = v), (v) => _setDead(top, v)),
+        Text(
+          trims.isEmpty
+              ? 'No trimming needed: the whole zine fits inside what your printer can reach.'
+              : 'Trim ${trims.join(' and ')} along the pink TRIM line before folding. '
+                  'The zine is laid out on ${zineLength(top, bottom).toStringAsFixed(0)} mm of the sheet.',
+          style: TextStyle(fontSize: 13, color: z.muted, height: 1.45),
+        ),
+      ]),
+    );
+  }
+
   Future<void> _share() async {
     try {
       await Printing.sharePdf(bytes: pdf!, filename: name);
@@ -97,7 +201,8 @@ class _SheetScreenState extends State<SheetScreen> {
     final steps = [
       ('Get the sheet out:', ' save or print the PDF at Actual size (100%), not Fit to page. It is an exact A4 page, so no margin settings are needed.'),
       ('Print', ' on A4 portrait, single-sided.'),
-      if (widget.store.deadZone > 0) ('Trim', ' off the strip at the end along the pink TRIM line. Do this first: the folds below assume the shorter sheet.'),
+      if (stripFor(widget.store.deadTop) + stripFor(widget.store.deadBottom) > 0)
+        ('Trim', ' off the strip along each pink TRIM line. Do this first: the folds below assume the shorter sheet.'),
       ('Crease', ' into 8 panels: fold in half top to bottom, then in half left to right, then each end into the middle. Unfold.'),
       ('Cut', ' along the pink dashed line: fold top to bottom again and cut from the folded edge through the middle two panels only.'),
       ('Fold', ' lengthwise, push the ends together so the slit opens, then flatten into a booklet with the week cover on the front.'),
@@ -124,33 +229,7 @@ class _SheetScreenState extends State<SheetScreen> {
                       child: AspectRatio(aspectRatio: 297 / 210, child: RawImage(image: sheet, fit: BoxFit.fill, filterQuality: FilterQuality.medium)),
                     ),
                   const SizedBox(height: 18),
-                  Text('PRINTER DEAD ZONE  ${dead.toStringAsFixed(1)} mm',
-                      style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 10.5, letterSpacing: 1.4, color: z.muted)),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: Slider(
-                      value: dead,
-                      min: 0,
-                      max: 20,
-                      onChanged: (v) => setState(() => dead = v),
-                      onChangeEnd: (v) {
-                        widget.store.deadZone = v < .5 ? 0 : v;
-                        widget.store.save();
-                        setState(() => dead = widget.store.deadZone);
-                        _build();
-                      },
-                    ),
-                  ),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: Text(
-                      dead == 0
-                          ? 'Leave at 0 if the whole sheet prints. If your printer cuts off the cover/Monday end, set how many mm it loses there; '
-                              'the sheet gets a strip to trim off first so all eight pages stay the same size.'
-                          : 'The zine is laid out on ${zineLength(dead).toStringAsFixed(0)} mm of the sheet. Cut the strip past the pink TRIM line off before folding.',
-                      style: TextStyle(fontSize: 13, color: z.muted, height: 1.45),
-                    ),
-                  ),
+                  _printerSection(z),
                   if (pdf == null || failed) ...[
                     const SizedBox(height: 14),
                     Text(busy, style: TextStyle(fontFamily: fMono, color: z.muted)),
