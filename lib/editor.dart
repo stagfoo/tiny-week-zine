@@ -11,6 +11,7 @@ import 'main.dart';
 import 'model.dart';
 import 'page_painter.dart';
 import 'sheet.dart';
+import 'sticker_catalog.dart';
 
 /// Space around the paper so sticker handles stay grabbable at the edges.
 const _m = 24.0;
@@ -44,6 +45,7 @@ class _EditorState extends State<Editor> {
   _Gesture? g;
   (String, String)? _hit; // set by a sticker part on pointer down, read by the stage
   final _focus = FocusNode();
+  String pack = 'basics'; // sticker pack shown in the tray
 
   @override
   void initState() {
@@ -93,6 +95,7 @@ class _EditorState extends State<Editor> {
       if (k == null) {
         toast(context, 'That image could not be opened.');
       } else {
+        pack = 'yours';
         addSticker(k, st.lib[k.substring(2)]!);
       }
     }
@@ -418,6 +421,42 @@ class _EditorState extends State<Editor> {
     );
   }
 
+  List<String> _packKeys() => switch (pack) {
+        'basics' => [for (final b in builtinStickers.keys) 'b:$b'],
+        'yours' => [for (final id in st.lib.keys.toList().reversed) 'u:$id'],
+        _ => [for (final (n, _) in stickerPacks.firstWhere((p) => p.$1 == pack).$3) 'b:$pack/$n'],
+      };
+
+  void _openPack(String id) {
+    setState(() => pack = id);
+    Future.wait([for (final k in _packKeys()) widget.images.load(k)]).then((_) => mounted ? setState(() {}) : null);
+  }
+
+  Widget _packChips(Zc z) {
+    final packs = [('basics', 'Basics'), if (st.lib.isNotEmpty) ('yours', 'Yours'), for (final p in stickerPacks) (p.$1, p.$2)];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(children: [
+        for (final (id, name) in packs)
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Material(
+              color: id == pack ? z.fg : z.surface,
+              shape: StadiumBorder(side: BorderSide(color: id == pack ? z.fg : z.line)),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () => _openPack(id),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Text(name, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: id == pack ? z.bg : z.muted)),
+                ),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+
   Widget _label(Zc z, String t) =>
       Text(t.toUpperCase(), style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 10.5, letterSpacing: 1.4, color: z.muted));
   Widget _hint(Zc z, String t) => ConstrainedBox(
@@ -499,45 +538,38 @@ class _EditorState extends State<Editor> {
       const SizedBox(height: 18),
       _label(z, 'Stickers & photos'),
       const SizedBox(height: 8),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
+      _packChips(z),
+      const SizedBox(height: 10),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: pickImages,
+          child: Container(
+            width: 62,
+            height: 62,
+            decoration: tile.copyWith(border: Border.all(color: z.accent)),
+            alignment: Alignment.center,
+            child: Text('+ PNG\nor photo',
+                textAlign: TextAlign.center, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w700, fontSize: 11, height: 1.15, color: z.accent)),
+          ),
+        ),
+        for (final k in _packKeys())
+          Semantics(
+            button: true,
+            label: k.startsWith('u:') ? 'Add your image' : 'Add sticker',
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: pickImages,
+              onTap: () => addSticker(k, stickerAspect(k, st.lib)),
               child: Container(
                 width: 62,
                 height: 62,
-                decoration: tile.copyWith(border: Border.all(color: z.accent)),
-                alignment: Alignment.center,
-                child: Text('+ PNG\nor photo',
-                    textAlign: TextAlign.center, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w700, fontSize: 11, height: 1.15, color: z.accent)),
+                padding: const EdgeInsets.all(6),
+                decoration: tile,
+                child: widget.images.get(k) == null ? null : RawImage(image: widget.images.get(k), fit: BoxFit.contain),
               ),
             ),
           ),
-          for (final k in [...st.lib.keys.toList().reversed.map((id) => 'u:$id'), ...builtinStickers.keys.map((b) => 'b:$b')])
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Semantics(
-                button: true,
-                label: k.startsWith('b:') ? 'Add ${k.substring(2)} sticker' : 'Add your image',
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => addSticker(k, k.startsWith('b:') ? builtinStickers[k.substring(2)]! : st.lib[k.substring(2)]!),
-                  child: Container(
-                    width: 62,
-                    height: 62,
-                    padding: const EdgeInsets.all(6),
-                    decoration: tile,
-                    child: widget.images.get(k) == null ? null : RawImage(image: widget.images.get(k), fit: BoxFit.contain),
-                  ),
-                ),
-              ),
-            ),
-        ]),
-      ),
+      ]),
       const SizedBox(height: 8),
       _hint(
           z,

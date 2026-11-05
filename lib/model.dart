@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'sticker_catalog.dart';
+
 /// Page size in mm: an A4 sheet cut into eight panels.
 const double pw = 74.25, ph = 105;
 
@@ -17,6 +19,16 @@ const dayLayouts = [('daily', 'Daily'), ('gridnote', 'Grid note'), ('drafting', 
 
 /// Built-in stickers: asset name -> width/height aspect.
 const builtinStickers = {'star': 1.0, 'heart': 1.0, 'cloud': 1.3, 'tape': 3.0, 'sparkle': 1.0, 'bunny': .85};
+
+/// Width/height of any sticker: `b:<basic>`, `b:<pack>/<nn>` or `u:<id>`.
+double stickerAspect(String key, Map<String, double> lib) {
+  final k = key.substring(2);
+  if (key.startsWith('u:')) return lib[k] ?? 1;
+  final slash = k.indexOf('/');
+  if (slash < 0) return builtinStickers[k] ?? 1;
+  final pack = stickerPacks.where((p) => p.$1 == k.substring(0, slash)).firstOrNull;
+  return pack?.$3.where((e) => e.$1 == k.substring(slash + 1)).firstOrNull?.$2 ?? 1;
+}
 
 String pad(int n) => n.toString().padLeft(2, '0');
 String keyOf(DateTime d) => '${d.year}-${pad(d.month)}-${pad(d.day)}';

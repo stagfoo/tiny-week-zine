@@ -65,6 +65,19 @@ flutter:
 
   assets:
     - assets/stickers/
+    - assets/stickers/bonk/
+    - assets/stickers/bunny/
+    - assets/stickers/categg/
+    - assets/stickers/chonk/
+    - assets/stickers/fall/
+    - assets/stickers/friends/
+    - assets/stickers/fries/
+    - assets/stickers/mushroom/
+    - assets/stickers/numbers/
+    - assets/stickers/planner/
+    - assets/stickers/tabby/
+    - assets/stickers/witch/
+    - assets/stickers/witchnotes/
 
   fonts:
     - family: Archivo
