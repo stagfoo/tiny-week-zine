@@ -1,0 +1,35 @@
+{
+    "name": "Tiny Week Zine",
+    "short_name": "Week Zine",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ebe9f2",
+    "theme_color": "#e2328b",
+    "description": "Tiny Week Zine — an 8-page fold-and-cut week planner zine builder.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
