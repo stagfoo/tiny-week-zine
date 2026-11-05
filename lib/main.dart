@@ -21,10 +21,10 @@ class Zc extends ThemeExtension<Zc> {
 
   static const light = Zc(
       bg: Color(0xFFEEEBE3), surface: Color(0xFFF6F4EE), fg: Color(0xFF141413), muted: Color(0xFF6E6A61),
-      line: Color(0xFF141413), soft: Color(0xFFD5D0C5), accent: Color(0xFFE2328B), accentInk: Colors.white);
+      line: Color(0xFF141413), soft: Color(0xFFD5D0C5), accent: Color(0xFF1E8A4C), accentInk: Colors.white);
   static const dark = Zc(
       bg: Color(0xFF151513), surface: Color(0xFF1D1C19), fg: Color(0xFFECE9E1), muted: Color(0xFF9B978D),
-      line: Color(0xFFECE9E1), soft: Color(0xFF36342F), accent: Color(0xFFFF62AD), accentInk: Color(0xFF1A0D16));
+      line: Color(0xFFECE9E1), soft: Color(0xFF36342F), accent: Color(0xFF5BCB8A), accentInk: Color(0xFF0B1F12));
 
   static Zc of(BuildContext context) => Theme.of(context).extension<Zc>()!;
 

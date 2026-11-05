@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tiny_week_zine/model.dart';
 import 'package:tiny_week_zine/page_painter.dart';
 
-const paper = Color(0xFFEEEBE3), ink = Color(0xFF141413), pinkHi = Color(0xFFE2328B);
+const paper = Color(0xFFEEEBE3), ink = Color(0xFF141413), greenHi = Color(0xFF1E8A4C);
 
 Future<void> _font(String fam, List<String> files) async {
   final l = FontLoader(fam);
@@ -96,7 +96,7 @@ Widget _cover() => Container(
             Text('TINY', style: _head(112)),
             Text('WEEK', style: _head(112)),
             Container(
-              color: pinkHi,
+              color: greenHi,
               padding: const EdgeInsets.fromLTRB(4, 6, 8, 0),
               child: Text('ZINE', style: _head(112, Colors.white)),
             ),
@@ -120,7 +120,7 @@ Widget _banner() => Container(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [
               Text('TINY WEEK', style: _head(78)),
               Row(children: [
-                Container(color: pinkHi, padding: const EdgeInsets.fromLTRB(3, 4, 6, 0), child: Text('ZINE', style: _head(78, Colors.white))),
+                Container(color: greenHi, padding: const EdgeInsets.fromLTRB(3, 4, 6, 0), child: Text('ZINE', style: _head(78, Colors.white))),
               ]),
             ]),
           ),

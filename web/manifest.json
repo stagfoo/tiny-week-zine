@@ -4,7 +4,7 @@
     "start_url": ".",
     "display": "standalone",
     "background_color": "#ebe9f2",
-    "theme_color": "#e2328b",
+    "theme_color": "#1e8a4c",
     "description": "Tiny Week Zine — an 8-page fold-and-cut week planner zine builder.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

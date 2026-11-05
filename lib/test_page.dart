@@ -10,7 +10,7 @@ import 'package:pdf/widgets.dart' as pw;
 Future<Uint8List> testPagePdf() async {
   const mm = PdfPageFormat.mm;
   final f = PdfPageFormat.a4;
-  final pink = PdfColor.fromHex('#ef3d95'), ink = PdfColor.fromHex('#2a2340'), navy = PdfColor.fromHex('#24305e');
+  final green = PdfColor.fromHex('#1e8a4c'), ink = PdfColor.fromHex('#2a2340'), navy = PdfColor.fromHex('#24305e');
   final doc = pw.Document(title: 'Printer check');
   final font = pw.Font.helvetica(), bold = pw.Font.helveticaBold();
 
@@ -27,7 +27,7 @@ Future<Uint8List> testPagePdf() async {
               final y = top ? f.height - d * mm : d * mm;
               final long = d % 10 == 0;
               g
-                ..setStrokeColor(long ? pink : ink)
+                ..setStrokeColor(long ? green : ink)
                 ..setLineWidth(long ? .6 : .3)
                 ..drawLine(35 * mm, y, (long ? 175 : 160) * mm, y)
                 ..strokePath();
@@ -51,7 +51,7 @@ Future<Uint8List> testPagePdf() async {
             pw.Positioned(
               left: x,
               top: (top ? d * mm : f.height - d * mm) - 2.9,
-              child: pw.Text('$d', style: pw.TextStyle(font: d % 10 == 0 ? bold : font, fontSize: 5.5, color: d % 10 == 0 ? pink : ink)),
+              child: pw.Text('$d', style: pw.TextStyle(font: d % 10 == 0 ? bold : font, fontSize: 5.5, color: d % 10 == 0 ? green : ink)),
             ),
       pw.Positioned(
         left: 30 * mm,
@@ -83,8 +83,8 @@ Future<Uint8List> testPagePdf() async {
               style: pw.TextStyle(font: font, fontSize: 9, color: navy)),
         ),
       ),
-      pw.Positioned(left: 0, right: 0, top: 30 * mm, child: pw.Center(child: pw.Text('TOP  (fed first)', style: pw.TextStyle(font: bold, fontSize: 9, color: pink)))),
-      pw.Positioned(left: 0, right: 0, bottom: 30 * mm, child: pw.Center(child: pw.Text('BOTTOM', style: pw.TextStyle(font: bold, fontSize: 9, color: pink)))),
+      pw.Positioned(left: 0, right: 0, top: 30 * mm, child: pw.Center(child: pw.Text('TOP  (fed first)', style: pw.TextStyle(font: bold, fontSize: 9, color: green)))),
+      pw.Positioned(left: 0, right: 0, bottom: 30 * mm, child: pw.Center(child: pw.Text('BOTTOM', style: pw.TextStyle(font: bold, fontSize: 9, color: green)))),
     ]),
   ));
   return doc.save();

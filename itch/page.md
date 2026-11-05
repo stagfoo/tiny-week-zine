@@ -39,7 +39,7 @@ all five on every tagged release.
 | Background | `#EEEBE3` (warm paper) |
 | Background 2 (column) | `#EEEBE3` |
 | Text | `#141413` (ink) |
-| Links | `#E2328B` (the one pink) |
+| Links | `#1E8A4C` (the one green) |
 | Buttons | `#141413`, so download buttons read as solid ink |
 | Header font | *Archivo Black* if it's in itch's list, otherwise *Oswald* |
 | Body font | *IBM Plex Mono* if it's in itch's list, otherwise *Space Mono* |
@@ -75,7 +75,7 @@ crease, make one cut, fold, and you're holding a tiny booklet for the week.
 ### HOW TO FOLD
 
 1. Crease into 8 panels, then unfold
-2. Cut the pink dashed line through the middle two panels
+2. Cut the green dashed line through the middle two panels
 3. Fold lengthwise, push the ends together, flatten into a booklet
 4. Staple a few weeks together through the marks by the spine
 

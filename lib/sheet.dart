@@ -195,9 +195,9 @@ class _SheetScreenState extends State<SheetScreen> {
     final steps = [
       ('Print', 'A4 portrait, single-sided, at actual size (100%), not fit to page.'),
       if (stripFor(widget.store.deadTop) + stripFor(widget.store.deadBottom) > 0)
-        ('Trim', 'the strip off along each pink TRIM line first. The folds assume the shorter sheet.'),
+        ('Trim', 'the strip off along each green TRIM line first. The folds assume the shorter sheet.'),
       ('Crease', 'into 8 panels: in half top to bottom, in half left to right, then each end into the middle. Unfold.'),
-      ('Cut', 'the pink dashed line: fold top to bottom again and cut from the fold through the middle two panels only.'),
+      ('Cut', 'the green dashed line: fold top to bottom again and cut from the fold through the middle two panels only.'),
       ('Fold', 'lengthwise, push the ends together so the slit opens, and flatten into a booklet, cover on the front.'),
       ('Bind', 'stack weeks with week 1 on top and staple through the dashed marks by the spine. A standard stapler takes 2–3 weeks; use a heavy-duty one, a binder clip or washi tape for a month.'),
     ];

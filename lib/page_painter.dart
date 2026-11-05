@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'images.dart';
 import 'model.dart';
 
-const navy = Color(0xFF24305E), gridc = Color(0xFFC6D0DC), ink = Color(0xFF2A2340), pink = Color(0xFFEF3D95);
+const navy = Color(0xFF24305E), gridc = Color(0xFFC6D0DC), ink = Color(0xFF2A2340), green = Color(0xFF1E8A4C);
 const lilac = Color(0xFFB3A5DF), faint = Color(0xFF8B83A6);
 const fArch = 'Archivo', fMono = 'PlexMono';
 const lh = 3.7;
@@ -543,7 +543,7 @@ Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images,
     ..strokeWidth = .3 * s;
   void ln(double ax, double ay, double bx, double by, Paint pt) => c.drawLine(Offset(ax * s, ay * s), Offset(bx * s, by * s), pt);
   TextPainter label(String txt) => TextPainter(
-      text: TextSpan(text: txt, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 1.8 * s, color: pink, height: 1)),
+      text: TextSpan(text: txt, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 1.8 * s, color: green, height: 1)),
       textDirection: TextDirection.ltr)
     ..layout();
   for (final x in [p, p * 2, p * 3]) {
@@ -552,13 +552,13 @@ Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images,
   }
   ln(7, ph, 10, ph, st(lilac));
   ln(len - 10, ph, len - 7, ph, st(lilac));
-  c.drawPath(dashed(Path()..moveTo(p * s, ph * s)..lineTo(p * 3 * s, ph * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
+  c.drawPath(dashed(Path()..moveTo(p * s, ph * s)..lineTo(p * 3 * s, ph * s), 2 * s, 1.4 * s), st(green)..strokeWidth = .35 * s);
   final cut = label('CUT');
   cut.paint(c, Offset(p * 2 * s - cut.width / 2, (ph + 2.6) * s - cut.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
   // TRIM lines, labelled on the strip side.
   final trim = label('TRIM THIS STRIP OFF FIRST');
   for (final (x, side) in [if (a > 0) (0.0, -1.0), if (stripFor(deadBottom) > 0) (len, 1.0)]) {
-    c.drawPath(dashed(Path()..moveTo(x * s, 7 * s)..lineTo(x * s, 203 * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
+    c.drawPath(dashed(Path()..moveTo(x * s, 7 * s)..lineTo(x * s, 203 * s), 2 * s, 1.4 * s), st(green)..strokeWidth = .35 * s);
     for (final y in [ph / 2, ph * 1.5]) {
       c.save();
       c.translate((x + side * 1.2) * s, y * s);
