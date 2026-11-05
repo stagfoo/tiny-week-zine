@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#e2328b"/>
+  <!-- the booklet: a page on a riso offset shadow -->
+  <rect x="318" y="226" width="420" height="594" fill="#231d38"/>
+  <rect x="286" y="194" width="420" height="594" fill="#ffffff"/>
+  <text x="326" y="300" font-family="Archivo, sans-serif" font-weight="600" font-size="78" fill="#24305e">MON</text>
+  <rect x="326" y="326" width="340" height="7" fill="#24305e"/>
+  <g fill="none" stroke="#24305e" stroke-width="7">
+    <rect x="326" y="380" width="30" height="30"/><rect x="326" y="440" width="30" height="30"/><rect x="326" y="500" width="30" height="30"/>
+  </g>
+  <g stroke="#c6d0dc" stroke-width="5"><path d="M380 410H666M380 470H666M380 530H666"/></g>
+  <g fill="#b3a5df"><circle cx="340" cy="600" r="6"/><circle cx="390" cy="600" r="6"/><circle cx="440" cy="600" r="6"/><circle cx="490" cy="600" r="6"/><circle cx="340" cy="650" r="6"/><circle cx="390" cy="650" r="6"/><circle cx="440" cy="650" r="6"/><circle cx="340" cy="700" r="6"/><circle cx="390" cy="700" r="6"/></g>
+  <!-- star sticker -->
+  <g transform="translate(560 560) rotate(14) scale(2.7) translate(-50 -50)">
+    <path d="M50 7L62 37L94 39L69 59L78 91L50 73L22 91L31 59L6 39L38 37Z" fill="#ffd23f" stroke="#2a2340" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="42" cy="52" r="3.6" fill="#2a2340"/><circle cx="58" cy="52" r="3.6" fill="#2a2340"/>
+    <path d="M45 60Q50 65 55 60" fill="none" stroke="#2a2340" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+</svg>
