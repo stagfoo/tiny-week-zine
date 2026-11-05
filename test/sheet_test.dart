@@ -60,4 +60,37 @@ void main() {
       }
     }
   });
+
+  // A DeskJet 2800 can't print the last 12.7mm. With a dead zone set, the
+  // zine shrinks onto the rest of the sheet and a TRIM line marks the strip.
+  test('a dead zone gets a printable TRIM line and nothing past it', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = await ZineStore.open();
+    store.setWeek(DateTime(2026, 11, 2));
+    const s = 4.0, dead = 12.7;
+    final len = zineLength(dead);
+    final im = await renderSheet(store.week, store.dates, Images(store), s, deadZone: dead);
+    final px = (await im.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+    bool inked(double xmm, double ymm) {
+      final o = ((ymm * s).floor() * im.width + (xmm * s).floor()) * 4;
+      return px.getUint8(o) < 250 || px.getUint8(o + 1) < 250 || px.getUint8(o + 2) < 250;
+    }
+
+    final bad = <String>[];
+    for (var y = 0.0; y < 210; y += .25) {
+      for (var x = 0.0; x < 297; x += .25) {
+        final deadZone = x >= 297 - dead;
+        final nearTrim = x > len - 6.5 && x < len - .5; // zine side of the line
+        final edge = x < 6.5 || ((y < 6.5 || y > 203.5) && x < len);
+        if ((deadZone || nearTrim || edge) && inked(x, y)) bad.add('($x, $y)');
+      }
+    }
+    expect(bad, isEmpty, reason: 'ink at ${bad.take(5).join(' ')}');
+    var dashes = 0;
+    for (var y = 7.0; y < 203; y += .25) {
+      if (inked(len, y)) dashes++;
+    }
+    expect(dashes, greaterThan(300), reason: 'the TRIM line should print (dashed, ~59% ink)');
+    expect(len, lessThan(297 - dead));
+  });
 }

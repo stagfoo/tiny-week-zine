@@ -75,6 +75,9 @@ class ZineStore {
   final Map<String, List<ZPage>> weeks = {};
   final Map<String, double> lib = {}; // user image id -> aspect
   String? defDay, defCover;
+
+  /// mm at the far end of the sheet this printer can't reach (0 = none).
+  double deadZone = 0;
   void Function(String message)? onWarn;
   bool _warned = false;
   Timer? _t;
@@ -93,6 +96,7 @@ class ZineStore {
         cur = j['cur'];
         defDay = j['defDay'];
         defCover = j['defCover'];
+        deadZone = (j['deadZone'] as num?)?.toDouble() ?? 0;
         (j['weeks'] as Map).forEach((k, v) => weeks[k] = [for (final p in v) ZPage.fromJson(Map<String, dynamic>.from(p))]);
         (j['lib'] as Map? ?? {}).forEach((k, v) => lib[k] = (v as num).toDouble());
       }
@@ -128,6 +132,7 @@ class ZineStore {
       'cur': cur,
       'defDay': defDay,
       'defCover': defCover,
+      'deadZone': deadZone,
       'weeks': weeks.map((k, v) => MapEntry(k, v.map((p) => p.toJson()).toList())),
       'lib': lib,
     };

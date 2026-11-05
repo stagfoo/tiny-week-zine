@@ -372,21 +372,38 @@ class PagePainter extends CustomPainter {
   bool shouldRepaint(PagePainter old) => old.stamp != stamp || old.pn != pn || old.layoutOverride != layoutOverride;
 }
 
+/// How far the trim line sits inside a printer's dead zone, so it still prints.
+const trimSafety = 4.0;
+
+/// Zine length along the sheet once the trim strip is cut off.
+double zineLength(double deadZone) => deadZone > 0 ? 297 - deadZone - trimSafety : 297;
+
 /// Lays the eight pages out on a landscape A4 sheet at [s] px/mm, with fold
 /// ticks and the cut line. Classic one-cut mini zine; top row upside down.
-Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images, double s) async {
+///
+/// [deadZone] is how much of the sheet's far end (the cover/Monday end, which
+/// is the bottom of the portrait PDF page and leaves the printer last) the
+/// printer can't reach. When it's set, the zine is laid out on a shorter sheet
+/// and a TRIM line marks the strip to cut off before folding, so all eight
+/// panels stay the same size.
+Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images, double s, {double deadZone = 0}) async {
   const top = [5, 4, 3, 2], bot = [6, 7, 8, 1];
+  final len = zineLength(deadZone), q = len / 297, p = pw * q;
   final rec = ui.PictureRecorder();
   final c = Canvas(rec);
   c.drawRect(Rect.fromLTWH(0, 0, 297 * s, 210 * s), Paint()..color = Colors.white);
   for (var col = 0; col < 4; col++) {
+    // Each page keeps its design and shrinks evenly into a narrower panel,
+    // hanging from the middle fold.
     c.save();
-    c.translate((col + 1) * pw * s, ph * s);
+    c.translate((col + 1) * p * s, ph * s);
     c.rotate(math.pi);
+    c.scale(q);
     drawPage(c, top[col], week[top[col] - 1], s, ds, stickers: images);
     c.restore();
     c.save();
-    c.translate(col * pw * s, ph * s);
+    c.translate(col * p * s, ph * s);
+    c.scale(q);
     drawPage(c, bot[col], week[bot[col] - 1], s, ds, stickers: images);
     c.restore();
   }
@@ -394,18 +411,30 @@ Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images,
     ..color = col
     ..style = PaintingStyle.stroke
     ..strokeWidth = .3 * s;
-  void ln(double ax, double ay, double bx, double by, Paint p) => c.drawLine(Offset(ax * s, ay * s), Offset(bx * s, by * s), p);
-  for (final x in [pw, pw * 2, pw * 3]) {
+  void ln(double ax, double ay, double bx, double by, Paint pt) => c.drawLine(Offset(ax * s, ay * s), Offset(bx * s, by * s), pt);
+  TextPainter label(String txt) => TextPainter(
+      text: TextSpan(text: txt, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 1.8 * s, color: pink, height: 1)),
+      textDirection: TextDirection.ltr)
+    ..layout();
+  for (final x in [p, p * 2, p * 3]) {
     ln(x, 7, x, 10, st(lilac));
     ln(x, 200, x, 203, st(lilac));
   }
   ln(7, ph, 10, ph, st(lilac));
-  ln(287, ph, 290, ph, st(lilac));
-  c.drawPath(dashed(Path()..moveTo(pw * s, ph * s)..lineTo(pw * 3 * s, ph * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
-  final cut = TextPainter(
-      text: TextSpan(text: 'CUT', style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 1.8 * s, color: pink, height: 1)),
-      textDirection: TextDirection.ltr)
-    ..layout();
-  cut.paint(c, Offset(pw * 2 * s - cut.width / 2, (ph + 2.6) * s - cut.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+  ln(len - 10, ph, len - 7, ph, st(lilac));
+  c.drawPath(dashed(Path()..moveTo(p * s, ph * s)..lineTo(p * 3 * s, ph * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
+  final cut = label('CUT');
+  cut.paint(c, Offset(p * 2 * s - cut.width / 2, (ph + 2.6) * s - cut.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+  if (deadZone > 0) {
+    c.drawPath(dashed(Path()..moveTo(len * s, 7 * s)..lineTo(len * s, 203 * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
+    final trim = label('TRIM THIS STRIP OFF FIRST');
+    for (final y in [ph / 2, ph * 1.5]) {
+      c.save();
+      c.translate((len + 1.2) * s, y * s);
+      c.rotate(math.pi / 2);
+      trim.paint(c, Offset(-trim.width / 2, -trim.computeDistanceToActualBaseline(TextBaseline.alphabetic)));
+      c.restore();
+    }
+  }
   return rec.endRecording().toImage((297 * s).round(), (210 * s).round());
 }
