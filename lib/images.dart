@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 
+import 'dither.dart';
 import 'model.dart';
 
 /// Decoded sticker images, shared by the editor and the print sheet.
@@ -13,6 +14,34 @@ class Images {
   final Map<String, Future<ui.Image?>> _pending = {};
 
   ui.Image? get(String key) => _cache[key];
+
+  String _ditherKey(Sticker k) {
+    final (w, h) = ditherSize(k.w, k.a, k.dots ?? 4);
+    return '${k.src}|dither|$w|$h|${(k.tone ?? 0).toStringAsFixed(2)}';
+  }
+
+  /// The picture a sticker shows: its dithered version when that's on and ready.
+  ui.Image? forSticker(Sticker k) => k.dither == true ? (_cache[_ditherKey(k)] ?? _cache[k.src]) : _cache[k.src];
+
+  /// Makes the dithered version for the sticker's current size and settings.
+  Future<void> dither(Sticker k) async {
+    if (k.dither != true) return;
+    final key = _ditherKey(k);
+    if (_cache[key] != null) return;
+    final src = await load(k.src);
+    if (src == null) return;
+    final (w, h) = ditherSize(k.w, k.a, k.dots ?? 4);
+    final rec = ui.PictureRecorder();
+    ui.Canvas(rec).drawImageRect(src, ui.Rect.fromLTWH(0, 0, src.width.toDouble(), src.height.toDouble()), ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+        ui.Paint()..filterQuality = ui.FilterQuality.high);
+    final small = await rec.endRecording().toImage(w, h);
+    final rgba = (await small.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer.asUint8List();
+    small.dispose();
+    final out = atkinson(rgba, w, h, tone: k.tone ?? 0);
+    final buf = await ui.ImmutableBuffer.fromUint8List(out);
+    final desc = ui.ImageDescriptor.raw(buf, width: w, height: h, pixelFormat: ui.PixelFormat.rgba8888);
+    _cache[key] = (await (await desc.instantiateCodec()).getNextFrame()).image;
+  }
 
   Future<ui.Image?> load(String key) {
     if (_cache[key] != null) return Future.value(_cache[key]);

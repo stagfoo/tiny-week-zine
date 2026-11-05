@@ -54,7 +54,7 @@ String uid() => List.generate(7, (_) => '0123456789abcdefghijklmnopqrstuvwxyz'[_
 class Sticker {
   Sticker(
       {required this.id, required this.src, required this.a, required this.x, required this.y, required this.w, required this.rot,
-      this.text, this.font, this.color, this.weight});
+      this.text, this.font, this.color, this.weight, this.dither, this.tone, this.dots});
   final String id, src;
   double a;
   double x, y, w, rot;
@@ -66,22 +66,32 @@ class Sticker {
   int? color;
   double? weight;
 
+  /// Pictures: black-and-white dithering, its tone (-1 darker … 1 lighter)
+  /// and dot density (dots per mm).
+  bool? dither;
+  double? tone, dots;
+
   bool get isText => src == 't';
   bool get isShape => src.startsWith('s:');
   String get shape => src.substring(2);
 
-  Sticker copy() => Sticker(id: id, src: src, a: a, x: x, y: y, w: w, rot: rot, text: text, font: font, color: color, weight: weight);
+  Sticker copy() => Sticker(
+      id: id, src: src, a: a, x: x, y: y, w: w, rot: rot, text: text, font: font, color: color, weight: weight, dither: dither, tone: tone, dots: dots);
   Map<String, dynamic> toJson() => {
         'id': id, 'src': src, 'a': a, 'x': x, 'y': y, 'w': w, 'rot': rot,
         if (text != null) 'text': text,
         if (font != null) 'font': font,
         if (color != null) 'color': color,
         if (weight != null) 'weight': weight,
+        if (dither != null) 'dither': dither,
+        if (tone != null) 'tone': tone,
+        if (dots != null) 'dots': dots,
       };
   factory Sticker.fromJson(Map<String, dynamic> j) => Sticker(
       id: j['id'], src: j['src'], a: (j['a'] as num).toDouble(), x: (j['x'] as num).toDouble(),
       y: (j['y'] as num).toDouble(), w: (j['w'] as num).toDouble(), rot: (j['rot'] as num).toDouble(),
-      text: j['text'], font: j['font'], color: j['color'], weight: (j['weight'] as num?)?.toDouble());
+      text: j['text'], font: j['font'], color: j['color'], weight: (j['weight'] as num?)?.toDouble(),
+      dither: j['dither'], tone: (j['tone'] as num?)?.toDouble(), dots: (j['dots'] as num?)?.toDouble());
 }
 
 class ZPage {

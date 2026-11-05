@@ -36,6 +36,7 @@ void main() {
     for (final p in store.week) {
       for (final k in p.stickers) {
         if (!k.isText && !k.isShape) await images.load(k.src);
+        await images.dither(k);
       }
     }
     final im = await renderSheet(store.week, store.dates, images, 7, deadTop: store.deadTop, deadBottom: store.deadBottom);

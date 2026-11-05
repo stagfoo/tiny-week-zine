@@ -467,14 +467,15 @@ void drawPage(Canvas c, int pn, ZPage pg, double s, List<DateTime> ds,
         c.restore();
         continue;
       }
-      final im = stickers.get(k.src);
+      final im = stickers.forSticker(k);
       if (im == null) continue;
+      final dots = k.dither == true && im != stickers.get(k.src);
       final h = k.w / k.a;
       c.save();
       c.translate(k.x * s, k.y * s);
       c.rotate(k.rot);
       c.drawImageRect(im, Rect.fromLTWH(0, 0, im.width.toDouble(), im.height.toDouble()),
-          Rect.fromLTWH(-k.w / 2 * s, -h / 2 * s, k.w * s, h * s), Paint()..filterQuality = FilterQuality.high);
+          Rect.fromLTWH(-k.w / 2 * s, -h / 2 * s, k.w * s, h * s), Paint()..filterQuality = dots ? FilterQuality.none : FilterQuality.high);
       c.restore();
     }
   }

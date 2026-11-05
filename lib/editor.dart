@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
@@ -50,6 +51,7 @@ class _EditorState extends State<Editor> {
   String pack = stickerPacks.first.$1; // sticker pack shown in the tray
   TextEditingController _tc = TextEditingController(); // words of the selected text box
   String? _tcFor;
+  Timer? _wheelT;
 
   @override
   void initState() {
@@ -65,6 +67,18 @@ class _EditorState extends State<Editor> {
     super.didChangeDependencies();
     // Text boxes draw in a fallback face until their fonts arrive.
     loadFonts([for (final p in st.week) for (final k in p.stickers) k.font]).then((_) => mounted ? setState(() {}) : null);
+    for (final p in st.week) {
+      for (final k in p.stickers) {
+        _redither(k);
+      }
+    }
+  }
+
+  /// Dithered pictures are rebuilt for their printed size; until then the
+  /// last version (or the original) shows.
+  void _redither(Sticker k) {
+    if (k.dither != true) return;
+    widget.images.dither(k).then((_) => mounted ? setState(() {}) : null);
   }
 
   ZPage get page => st.week[cur];
@@ -212,6 +226,8 @@ class _EditorState extends State<Editor> {
     } else if (ptrs.isEmpty) {
       setState(() => g = null);
       _save();
+      final s = findS(gg.id);
+      if (s != null) _redither(s);
     }
   }
 
@@ -223,6 +239,8 @@ class _EditorState extends State<Editor> {
       if (s == null) return;
       setState(() => s.w = (s.w * math.exp(-(ev as PointerScrollEvent).scrollDelta.dy / 600)).clamp(5, 140));
       _save();
+      _wheelT?.cancel();
+      _wheelT = Timer(const Duration(milliseconds: 250), () => _redither(s));
     });
   }
 
@@ -405,7 +423,8 @@ class _EditorState extends State<Editor> {
 
   Widget _sticker(Zc z, Sticker s, Map<Type, GestureRecognizerFactory> eager) {
     final h = s.w / s.a, on = s.id == sel;
-    final im = widget.images.get(s.src);
+    final im = widget.images.forSticker(s);
+    final dots = s.dither == true && im != widget.images.get(s.src);
     Widget part(String kind, Widget child) => RawGestureDetector(
           gestures: eager,
           child: Listener(onPointerDown: (_) => _hit = (s.id, kind), child: child),
@@ -442,7 +461,7 @@ class _EditorState extends State<Editor> {
                       ? CustomPaint(painter: ObjectPainter(s, mm))
                       : im == null
                           ? const SizedBox.expand()
-                          : RawImage(image: im, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
+                          : RawImage(image: im, fit: BoxFit.fill, filterQuality: dots ? FilterQuality.none : FilterQuality.medium),
                 ),
               ),
             ),
@@ -613,6 +632,7 @@ class _EditorState extends State<Editor> {
                 : 'Tap to add · drag to move · pinch or handle to resize and turn',
             style: monoLabel(z, size: 10),
           ),
+          ..._pictureControls(z),
         ]),
       ),
       const SizedBox(height: 16),
@@ -636,6 +656,50 @@ class _EditorState extends State<Editor> {
         ]),
       ),
     ]);
+  }
+
+  /// Black-and-white dithering for the selected picture.
+  List<Widget> _pictureControls(Zc z) {
+    final k = sel == null ? null : findS(sel!);
+    if (k == null || k.isText || k.isShape) return const [];
+    final on = k.dither == true;
+    Widget slider(String label, String value, double v, double min, double max, void Function(double) set) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Expanded(child: Text(label.toUpperCase(), style: monoLabel(z))),
+              Text(value.toUpperCase(), style: monoLabel(z, color: z.fg)),
+            ]),
+            Slider(
+              value: v.clamp(min, max),
+              min: min,
+              max: max,
+              onChanged: (x) => setState(() => set(x)),
+              onChangeEnd: (_) {
+                _save();
+                _redither(k);
+              },
+            ),
+          ],
+        );
+    return [
+      const SizedBox(height: 14),
+      Container(height: 1, color: z.soft),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: Text('SELECTED PICTURE', style: monoLabel(z))),
+        _tag(z, on ? 'B/W dither · on' : 'B/W dither', on, () {
+          setState(() => k.dither = on ? null : true);
+          _save();
+          _redither(k);
+        }),
+      ]),
+      if (on) ...[
+        const SizedBox(height: 10),
+        slider('Tone · darker to lighter', (k.tone ?? 0).toStringAsFixed(2), k.tone ?? 0, -1, 1, (v) => k.tone = v),
+        slider('Dot size', '${(1 / (k.dots ?? 4)).toStringAsFixed(2)} mm', 1 / (k.dots ?? 4), .12, .5, (v) => k.dots = 1 / v),
+      ],
+    ];
   }
 
   /// Text boxes and shapes: add buttons, then an inspector for the selected one.

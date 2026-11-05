@@ -62,6 +62,7 @@ class _SheetScreenState extends State<SheetScreen> {
             if (!k.isText && !k.isShape) widget.images.load(k.src),
         loadFonts([for (final p in w) for (final k in p.stickers) k.font]),
       ]);
+      await Future.wait([for (final p in w) for (final k in p.stickers) widget.images.dither(k)]);
       setState(() => busy = 'Laying out pages…');
       await _tick();
       final im = await renderSheet(w, widget.store.dates, widget.images, s, deadTop: widget.store.deadTop, deadBottom: widget.store.deadBottom);
