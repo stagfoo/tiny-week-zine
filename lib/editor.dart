@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'images.dart';
 import 'main.dart';
 import 'model.dart';
+import 'objects.dart';
 import 'page_painter.dart';
 import 'sheet.dart';
 import 'sticker_catalog.dart';
@@ -46,6 +48,8 @@ class _EditorState extends State<Editor> {
   (String, String)? _hit; // set by a sticker part on pointer down, read by the stage
   final _focus = FocusNode();
   String pack = stickerPacks.first.$1; // sticker pack shown in the tray
+  TextEditingController _tc = TextEditingController(); // words of the selected text box
+  String? _tcFor;
 
   @override
   void initState() {
@@ -54,6 +58,13 @@ class _EditorState extends State<Editor> {
     // Repaint once sticker images finish decoding.
     Future.wait([for (final k in _packKeys()) widget.images.load(k), for (final id in st.lib.keys) widget.images.load('u:$id')])
         .then((_) => mounted ? setState(() {}) : null);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Text boxes draw in a fallback face until their fonts arrive.
+    loadFonts([for (final p in st.week) for (final k in p.stickers) k.font]).then((_) => mounted ? setState(() {}) : null);
   }
 
   ZPage get page => st.week[cur];
@@ -71,6 +82,32 @@ class _EditorState extends State<Editor> {
       page.stickers.add(s);
       sel = s.id;
     });
+    _save();
+  }
+
+  void _addObject(Sticker s) {
+    setState(() {
+      page.stickers.add(s);
+      sel = s.id;
+    });
+    _save();
+  }
+
+  Future<void> addText() async {
+    final k = Sticker(id: uid(), src: 't', a: 1, x: pw / 2, y: ph / 2, w: 30, rot: 0, text: 'Your text', font: zineFonts.first, color: inkColors.first);
+    await loadFonts([k.font]);
+    k.a = textAspect(k);
+    _addObject(k);
+  }
+
+  void addShape(String kind) {
+    final (_, _, w, a) = shapeKinds.firstWhere((e) => e.$1 == kind);
+    _addObject(Sticker(id: uid(), src: 's:$kind', a: a, x: pw / 2, y: ph / 2, w: w, rot: 0, color: inkColors.first, weight: .5));
+  }
+
+  Future<void> _setFont(Sticker k, String font) async {
+    await loadFonts([k.font, font]);
+    setState(() => retext(k, font: font));
     _save();
   }
 
@@ -193,12 +230,14 @@ class _EditorState extends State<Editor> {
   @override
   Widget build(BuildContext context) {
     final z = Zc.of(context);
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.delete): () => sel != null ? delSticker(sel!) : null,
-        const SingleActivator(LogicalKeyboardKey.backspace): () => sel != null ? delSticker(sel!) : null,
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.delete): _DeleteIntent(),
+        SingleActivator(LogicalKeyboardKey.backspace): _DeleteIntent(),
       },
-      child: Focus(
+      child: Actions(
+        actions: {_DeleteIntent: _DeleteAction(() => sel != null, () => delSticker(sel!))},
+        child: Focus(
         focusNode: _focus,
         autofocus: true,
         child: Scaffold(
@@ -233,6 +272,7 @@ class _EditorState extends State<Editor> {
               );
             }),
           ),
+        ),
         ),
       ),
     );
@@ -398,7 +438,11 @@ class _EditorState extends State<Editor> {
                 child: DecoratedBox(
                   position: DecorationPosition.foreground,
                   decoration: BoxDecoration(border: on ? Border.all(color: z.accent, width: 1.5) : null),
-                  child: im == null ? const SizedBox.expand() : RawImage(image: im, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
+                  child: s.isText || s.isShape
+                      ? CustomPaint(painter: ObjectPainter(s, mm))
+                      : im == null
+                          ? const SizedBox.expand()
+                          : RawImage(image: im, fit: BoxFit.fill, filterQuality: FilterQuality.medium),
                 ),
               ),
             ),
@@ -572,6 +616,8 @@ class _EditorState extends State<Editor> {
         ]),
       ),
       const SizedBox(height: 16),
+      _objectsSection(z),
+      const SizedBox(height: 16),
       Section(
         label: 'Print',
         meta: 'one sheet · one cut',
@@ -591,4 +637,179 @@ class _EditorState extends State<Editor> {
       ),
     ]);
   }
+
+  /// Text boxes and shapes: add buttons, then an inspector for the selected one.
+  Widget _objectsSection(Zc z) {
+    final k = sel == null ? null : findS(sel!);
+    final obj = k != null && (k.isText || k.isShape) ? k : null;
+    Widget swatches(Sticker k) => Wrap(spacing: 6, children: [
+          for (final c in inkColors)
+            Semantics(
+              button: true,
+              selected: (k.color ?? inkColors.first) == c,
+              label: 'Colour',
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => k.color = c);
+                  _save();
+                },
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: Color(c),
+                    border: Border.all(color: (k.color ?? inkColors.first) == c ? z.line : z.soft, width: (k.color ?? inkColors.first) == c ? 3 : 1),
+                  ),
+                ),
+              ),
+            ),
+        ]);
+    Widget slider(String label, double v, double min, double max, String unit, void Function(double) set) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              Expanded(child: Text(label.toUpperCase(), style: monoLabel(z))),
+              Text('${v.toStringAsFixed(unit == 'mm' ? 1 : 2)} $unit'.toUpperCase(), style: monoLabel(z, color: z.fg)),
+            ]),
+            Slider(value: v.clamp(min, max), min: min, max: max, onChanged: (x) => setState(() => set(x)), onChangeEnd: (_) => _save()),
+          ],
+        );
+
+    final children = <Widget>[
+      Wrap(spacing: 6, runSpacing: 6, children: [
+        _tag(z, '+ Text', false, addText),
+        for (final (kind, name, _, _) in shapeKinds) _tag(z, name, obj?.src == 's:$kind', () => addShape(kind)),
+      ]),
+      const SizedBox(height: 12),
+    ];
+    if (obj == null) {
+      children.add(Text('Select a text box or shape on the page to edit it', style: monoLabel(z, size: 10)));
+    } else if (obj.isText) {
+      if (_tcFor != obj.id) {
+        final old = _tc;
+        WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+        _tc = TextEditingController(text: obj.text);
+        _tcFor = obj.id;
+      }
+      children.addAll([
+        TextField(
+          key: ValueKey('text-${obj.id}'),
+          controller: _tc,
+          minLines: 1,
+          maxLines: 4,
+          style: TextStyle(color: z.fg, fontSize: 15),
+          cursorColor: z.fg,
+          decoration: InputDecoration(
+            isDense: true,
+            border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: z.line)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: z.line)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: z.line, width: 2)),
+          ),
+          onChanged: (v) {
+            setState(() => retext(obj, text: v));
+            _save();
+          },
+        ),
+        const SizedBox(height: 12),
+        Text('FONT', style: monoLabel(z)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final f in zineFonts)
+            Material(
+              color: obj.font == f ? z.fg : Colors.transparent,
+              shape: Border.all(color: z.line),
+              child: InkWell(
+                onTap: () => _setFont(obj, f),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(f, style: textStyle(f, 14, obj.font == f ? z.bg : z.fg)),
+                ),
+              ),
+            ),
+          _tag(z, 'More fonts…', obj.font != null && !zineFonts.contains(obj.font), () => _moreFonts(obj)),
+        ]),
+        const SizedBox(height: 12),
+        swatches(obj),
+      ]);
+    } else {
+      children.addAll([
+        swatches(obj),
+        const SizedBox(height: 12),
+        slider('Line weight', obj.weight ?? .5, .2, 2.5, 'mm', (v) => obj.weight = v),
+        if (!isLineShape(obj.shape)) slider('Proportions · wide to tall', 1 / obj.a, .25, 4, '', (v) => obj.a = 1 / v),
+      ]);
+    }
+    return Section(
+      label: 'Text & shapes',
+      meta: obj == null ? null : (obj.isText ? 'text box' : obj.shape),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+    );
+  }
+
+  /// Every Google Fonts family, searchable.
+  Future<void> _moreFonts(Sticker k) async {
+    final z = Zc.of(context);
+    final all = GoogleFonts.asMap().keys.toList()..sort();
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        var q = '';
+        return StatefulBuilder(builder: (ctx, set) {
+          final hits = q.isEmpty ? all : all.where((f) => f.toLowerCase().contains(q.toLowerCase())).toList();
+          return Dialog(
+            backgroundColor: z.bg,
+            shape: Border.all(color: z.line),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420, maxHeight: 560),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search ${all.length} Google Fonts',
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: z.line)),
+                    ),
+                    onChanged: (v) => set(() => q = v),
+                  ),
+                ),
+                Divider(height: 1, color: z.line),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: hits.length,
+                    itemBuilder: (_, i) => ListTile(
+                      dense: true,
+                      title: Text(hits[i], style: TextStyle(color: z.fg)),
+                      onTap: () => Navigator.pop(ctx, hits[i]),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          );
+        });
+      },
+    );
+    if (picked != null) await _setFont(k, picked);
+  }
+}
+
+class _DeleteIntent extends Intent {
+  const _DeleteIntent();
+}
+
+/// Deletes the selected sticker, but stays out of the way while typing,
+/// so Backspace in a text field edits the text instead.
+class _DeleteAction extends Action<_DeleteIntent> {
+  _DeleteAction(this.hasSelection, this.delete);
+  final bool Function() hasSelection;
+  final VoidCallback delete;
+
+  @override
+  bool isEnabled(_DeleteIntent intent) =>
+      hasSelection() && FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() == null;
+
+  @override
+  void invoke(_DeleteIntent intent) => delete();
 }

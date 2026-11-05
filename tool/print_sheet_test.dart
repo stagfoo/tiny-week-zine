@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tiny_week_zine/images.dart';
 import 'package:tiny_week_zine/model.dart';
+import 'package:tiny_week_zine/objects.dart' show useGoogleFonts;
 import 'package:tiny_week_zine/page_painter.dart';
 import 'package:tiny_week_zine/sheet.dart';
 
@@ -31,9 +32,10 @@ void main() {
     if (top.isNotEmpty) store.deadTop = double.parse(top);
     if (bottom.isNotEmpty) store.deadBottom = double.parse(bottom);
     final images = Images(store);
+    useGoogleFonts = false; // no network in flutter test; text prints in Archivo here
     for (final p in store.week) {
       for (final k in p.stickers) {
-        await images.load(k.src);
+        if (!k.isText && !k.isShape) await images.load(k.src);
       }
     }
     final im = await renderSheet(store.week, store.dates, images, 7, deadTop: store.deadTop, deadBottom: store.deadBottom);

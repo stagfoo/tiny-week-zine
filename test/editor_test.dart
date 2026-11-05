@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tiny_week_zine/images.dart';
 import 'package:tiny_week_zine/main.dart';
 import 'package:tiny_week_zine/model.dart';
+import 'package:tiny_week_zine/objects.dart';
 
 void main() {
   late ZineStore store;
+  setUp(() => useGoogleFonts = false);
 
   Future<void> boot(WidgetTester t) async {
     SharedPreferences.setMockInitialValues({});
@@ -72,5 +75,28 @@ void main() {
     await t.pump();
     expect(store.week[1].stickers, isEmpty);
     await t.pump(const Duration(seconds: 1)); // flush the debounced save
+  });
+
+  testWidgets('a text box can be added and typed into; Backspace edits, not deletes', (t) async {
+    await boot(t);
+    await t.tap(find.text('+ TEXT'));
+    await t.pump();
+    final k = store.week[1].stickers.last;
+    expect(k.isText, isTrue);
+    await t.enterText(find.byType(TextField), 'Gym 7am');
+    await t.pump();
+    expect(k.text, 'Gym 7am');
+    await t.sendKeyEvent(LogicalKeyboardKey.backspace);
+    await t.pump();
+    expect(store.week[1].stickers, contains(k), reason: 'still there');
+    await t.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('shapes are added from the panel', (t) async {
+    await boot(t);
+    await t.tap(find.text('CIRCLE'));
+    await t.pump();
+    expect(store.week[1].stickers.last.src, 's:circle');
+    await t.pump(const Duration(seconds: 1));
   });
 }

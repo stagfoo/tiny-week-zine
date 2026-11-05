@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'images.dart';
 import 'model.dart';
+import 'objects.dart';
 
 const navy = Color(0xFF24305E), gridc = Color(0xFFC6D0DC), ink = Color(0xFF2A2340), green = Color(0xFF1E8A4C);
 const lilac = Color(0xFFB3A5DF), faint = Color(0xFF8B83A6);
@@ -458,6 +459,14 @@ void drawPage(Canvas c, int pn, ZPage pg, double s, List<DateTime> ds,
 
   if (stickers != null) {
     for (final k in pg.stickers) {
+      if (k.isText || k.isShape) {
+        c.save();
+        c.translate(k.x * s, k.y * s);
+        c.rotate(k.rot);
+        drawObject(c, k, s);
+        c.restore();
+        continue;
+      }
       final im = stickers.get(k.src);
       if (im == null) continue;
       final h = k.w / k.a;

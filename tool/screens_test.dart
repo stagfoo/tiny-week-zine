@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tiny_week_zine/images.dart';
 import 'package:tiny_week_zine/main.dart';
 import 'package:tiny_week_zine/model.dart';
+import 'package:tiny_week_zine/objects.dart';
 import 'package:tiny_week_zine/sheet.dart';
 
 Future<void> _font(String fam, List<String> files) async {
@@ -46,6 +47,7 @@ Future<void> _shoot(WidgetTester t, GlobalKey key, String name) async {
 }
 
 void main() {
+  useGoogleFonts = false;
   late ZineStore store;
   late Images images;
 
@@ -104,6 +106,29 @@ void main() {
     await t.pump();
     await t.pump(const Duration(milliseconds: 400));
     await _shoot(t, key, 'sheet-wide');
+    await t.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('editor-text', (t) async {
+    const dpr = 1.5;
+    t.view.physicalSize = const Size(1180, 1250) * dpr;
+    t.view.devicePixelRatio = dpr;
+    addTearDown(t.view.reset);
+    final key = GlobalKey();
+    await t.pumpWidget(RepaintBoundary(key: key, child: await app(t)));
+    await t.tap(find.text('TUE'));
+    await t.pump();
+    await t.tap(find.text('BOX'));
+    await t.pump();
+    await t.tap(find.text('ARROW'));
+    await t.pump();
+    await t.tap(find.text('+ TEXT'));
+    for (var i = 0; i < 3; i++) {
+      await t.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await t.pump();
+    }
+    await t.enterText(find.byType(TextField), 'Big week!');
+    await _shoot(t, key, 'editor-text');
     await t.pump(const Duration(seconds: 1));
   });
 }

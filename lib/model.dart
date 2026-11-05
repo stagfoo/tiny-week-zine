@@ -52,16 +52,36 @@ String uid() => List.generate(7, (_) => '0123456789abcdefghijklmnopqrstuvwxyz'[_
 /// A sticker on a page. Position is its centre in mm, w is its width in mm,
 /// a is width/height, rot is radians. src is `b:<builtin>` or `u:<image id>`.
 class Sticker {
-  Sticker({required this.id, required this.src, required this.a, required this.x, required this.y, required this.w, required this.rot});
+  Sticker(
+      {required this.id, required this.src, required this.a, required this.x, required this.y, required this.w, required this.rot,
+      this.text, this.font, this.color, this.weight});
   final String id, src;
-  final double a;
+  double a;
   double x, y, w, rot;
 
-  Sticker copy() => Sticker(id: id, src: src, a: a, x: x, y: y, w: w, rot: rot);
-  Map<String, dynamic> toJson() => {'id': id, 'src': src, 'a': a, 'x': x, 'y': y, 'w': w, 'rot': rot};
+  /// Text boxes (src `t`): the words and the Google Fonts family.
+  String? text, font;
+
+  /// Text boxes and shapes (src `s:<kind>`): ARGB colour, and a shape's line weight in mm.
+  int? color;
+  double? weight;
+
+  bool get isText => src == 't';
+  bool get isShape => src.startsWith('s:');
+  String get shape => src.substring(2);
+
+  Sticker copy() => Sticker(id: id, src: src, a: a, x: x, y: y, w: w, rot: rot, text: text, font: font, color: color, weight: weight);
+  Map<String, dynamic> toJson() => {
+        'id': id, 'src': src, 'a': a, 'x': x, 'y': y, 'w': w, 'rot': rot,
+        if (text != null) 'text': text,
+        if (font != null) 'font': font,
+        if (color != null) 'color': color,
+        if (weight != null) 'weight': weight,
+      };
   factory Sticker.fromJson(Map<String, dynamic> j) => Sticker(
       id: j['id'], src: j['src'], a: (j['a'] as num).toDouble(), x: (j['x'] as num).toDouble(),
-      y: (j['y'] as num).toDouble(), w: (j['w'] as num).toDouble(), rot: (j['rot'] as num).toDouble());
+      y: (j['y'] as num).toDouble(), w: (j['w'] as num).toDouble(), rot: (j['rot'] as num).toDouble(),
+      text: j['text'], font: j['font'], color: j['color'], weight: (j['weight'] as num?)?.toDouble());
 }
 
 class ZPage {

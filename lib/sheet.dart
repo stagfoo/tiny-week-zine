@@ -11,6 +11,7 @@ import 'package:printing/printing.dart';
 import 'images.dart';
 import 'main.dart';
 import 'model.dart';
+import 'objects.dart';
 import 'page_painter.dart';
 import 'printer_check.dart';
 import 'printer_margins.dart';
@@ -55,7 +56,12 @@ class _SheetScreenState extends State<SheetScreen> {
     try {
       final w = widget.store.week;
       setState(() => busy = 'Getting stickers ready…');
-      await Future.wait([for (final p in w) for (final k in p.stickers) widget.images.load(k.src)]);
+      await Future.wait([
+        for (final p in w)
+          for (final k in p.stickers)
+            if (!k.isText && !k.isShape) widget.images.load(k.src),
+        loadFonts([for (final p in w) for (final k in p.stickers) k.font]),
+      ]);
       setState(() => busy = 'Laying out pages…');
       await _tick();
       final im = await renderSheet(w, widget.store.dates, widget.images, s, deadTop: widget.store.deadTop, deadBottom: widget.store.deadBottom);
