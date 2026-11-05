@@ -62,7 +62,7 @@ class _SheetScreenState extends State<SheetScreen> {
         busy = 'Making the PDF…';
       });
       await _tick();
-      final bytes = await _pdf(im);
+      final bytes = await sheetPdf(im, 'Week $wk zine');
       if (!mounted || gen != _gen) return;
       setState(() => pdf = bytes);
     } catch (e) {
@@ -73,26 +73,6 @@ class _SheetScreenState extends State<SheetScreen> {
         });
       }
     }
-  }
-
-  /// Turns the landscape sheet upright so it fills a portrait A4 page exactly.
-  Future<Uint8List> _pdf(ui.Image im) async {
-    final rec = ui.PictureRecorder();
-    Canvas(rec)
-      ..translate(im.height.toDouble(), 0)
-      ..rotate(math.pi / 2)
-      ..drawImage(im, Offset.zero, Paint());
-    final up = await rec.endRecording().toImage(im.height, im.width);
-    final rgba = (await up.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-    final jpg = img.encodeJpg(img.Image.fromBytes(width: up.width, height: up.height, bytes: rgba.buffer, numChannels: 4), quality: 92);
-    up.dispose();
-    final doc = pw.Document(title: 'Week $wk zine');
-    doc.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: pw.EdgeInsets.zero,
-        build: (_) => pw.SizedBox(
-            width: PdfPageFormat.a4.width, height: PdfPageFormat.a4.height, child: pw.Image(pw.MemoryImage(jpg), fit: pw.BoxFit.fill))));
-    return doc.save();
   }
 
   Future<void> _print() async {
@@ -207,4 +187,24 @@ class _SheetScreenState extends State<SheetScreen> {
       ),
     );
   }
+}
+
+/// Turns the landscape sheet upright so it fills a portrait A4 page exactly.
+Future<Uint8List> sheetPdf(ui.Image im, String title) async {
+  final rec = ui.PictureRecorder();
+  Canvas(rec)
+    ..translate(im.height.toDouble(), 0)
+    ..rotate(math.pi / 2)
+    ..drawImage(im, Offset.zero, Paint());
+  final up = await rec.endRecording().toImage(im.height, im.width);
+  final rgba = (await up.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+  final jpg = img.encodeJpg(img.Image.fromBytes(width: up.width, height: up.height, bytes: rgba.buffer, numChannels: 4), quality: 92);
+  up.dispose();
+  final doc = pw.Document(title: title);
+  doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.zero,
+      build: (_) => pw.SizedBox(
+          width: PdfPageFormat.a4.width, height: PdfPageFormat.a4.height, child: pw.Image(pw.MemoryImage(jpg), fit: pw.BoxFit.fill))));
+  return doc.save();
 }
