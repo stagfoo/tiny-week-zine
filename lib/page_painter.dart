@@ -114,6 +114,61 @@ void drawWeather(Canvas c, String t, double cx, double cy, double u, Color inkc)
   }
 }
 
+/// Small outline shapes for trackers. cx, cy, r in pixels.
+void drawShape(Canvas c, String kind, double cx, double cy, double r, Paint p) {
+  Path union(List<Rect> ovals) =>
+      ovals.skip(1).fold(Path()..addOval(ovals.first), (acc, o) => Path.combine(PathOperation.union, acc, Path()..addOval(o)));
+  Rect circ(double x, double y, double rr) => Rect.fromCircle(center: Offset(x, y), radius: rr);
+  Path star(int points, double inner) {
+    final path = Path();
+    for (var k = 0; k < points * 2; k++) {
+      final a = -math.pi / 2 + k * math.pi / points, rr = k.isEven ? r : r * inner;
+      final o = Offset(cx + math.cos(a) * rr, cy + math.sin(a) * rr);
+      k == 0 ? path.moveTo(o.dx, o.dy) : path.lineTo(o.dx, o.dy);
+    }
+    return path..close();
+  }
+
+  final path = switch (kind) {
+    'heart' => Path()
+      ..moveTo(cx, cy + r * .9)
+      ..cubicTo(cx - r * 1.6, cy - r * .1, cx - r * .9, cy - r * 1.3, cx, cy - r * .45)
+      ..cubicTo(cx + r * .9, cy - r * 1.3, cx + r * 1.6, cy - r * .1, cx, cy + r * .9),
+    'star' => star(5, .45),
+    'sparkle' => star(4, .32),
+    'flower' => union([circ(cx, cy, r * .62), for (var k = 0; k < 6; k++) circ(cx + math.cos(k * math.pi / 3) * r * .58, cy + math.sin(k * math.pi / 3) * r * .58, r * .42)]),
+    'cloud' => union([circ(cx - r * .5, cy + r * .15, r * .5), circ(cx, cy - r * .2, r * .62), circ(cx + r * .52, cy + r * .15, r * .48)]),
+    'arch' => Path()
+      ..moveTo(cx - r * .8, cy + r)
+      ..lineTo(cx - r * .8, cy)
+      ..arcTo(circ(cx, cy, r * .8), math.pi, math.pi, false)
+      ..lineTo(cx + r * .8, cy + r)
+      ..close(),
+    'drop' => Path()
+      ..moveTo(cx, cy - r * 1.3)
+      ..cubicTo(cx + r * .3, cy - r * .7, cx + r, cy - r * .1, cx + r, cy + r * .35)
+      ..arcTo(circ(cx, cy + r * .35, r), 0, math.pi, false)
+      ..cubicTo(cx - r, cy - r * .1, cx - r * .3, cy - r * .7, cx, cy - r * 1.3),
+    _ => Path()..addOval(circ(cx, cy, r)),
+  };
+  c.drawPath(path, p);
+}
+
+/// A mood face, 0 (great) to 4 (awful). cx, cy, r in pixels.
+void drawFace(Canvas c, int mood, double cx, double cy, double r, Paint p) {
+  c.drawCircle(Offset(cx, cy), r, p);
+  final eye = Paint()..color = p.color;
+  for (final dx in [-.35, .35]) {
+    c.drawCircle(Offset(cx + dx * r, cy - .18 * r), r * .09, eye);
+  }
+  final curve = [.35, .2, 0.0, -.2, -.35][mood];
+  c.drawPath(
+      Path()
+        ..moveTo(cx - .38 * r, cy + .32 * r)
+        ..quadraticBezierTo(cx, cy + (.32 + curve) * r, cx + .38 * r, cy + .32 * r),
+      p);
+}
+
 /// Draws page [pn] (1..8) with its top-left at the canvas origin.
 /// [s] is px per mm. Every layout is print-and-pen.
 void drawPage(Canvas c, int pn, ZPage pg, double s, List<DateTime> ds,
@@ -321,6 +376,71 @@ void drawPage(Canvas c, int pn, ZPage pg, double s, List<DateTime> ds,
         final y = sc.top + 1.5 + k * rowH;
         t(hours[k], sc.left + 2, y + 4.3, 500, 2, fMono, ink);
         line(sc.left + 7.5, y + 4.8, sc.right - 2, y + 4.8, lilac, .15);
+      }
+    case 'weekly':
+      final a = ds[0], b = ds[6];
+      t('WEEKLY', x0, 11.6, 600, 6, fArch, navy);
+      t('W${isoWeek(a)} · ${fmtD(a)} – ${fmtD(b)}', x1, 11.6, 500, 1.8, fMono, navy, 'right');
+      const gap = 2.4, top = 16.0;
+      final bw = (x1 - x0 - gap) / 2, bh = (101 - top - 3 * gap) / 4;
+      for (var k = 0; k < 8; k++) {
+        final x = x0 + (k % 2) * (bw + gap), y = top + (k ~/ 2) * (bh + gap);
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x * s, y * s, bw * s, bh * s), Radius.circular(2.4 * s)), stroke(navy, .3));
+        t(k < 7 ? days[k].substring(0, 1) + days[k].substring(1).toLowerCase() : 'memo', x + 2, y + 4, 400, 2.4, fArch, navy);
+        if (k < 7) t('${ds[k].day}', x + bw - 2, y + 4, 500, 1.8, fMono, faint, 'right');
+      }
+    case 'habits':
+      t('HABITS', x0, 11.6, 600, 6, fArch, navy);
+      t('W${isoWeek(ds[0])}', x1, 11.6, 500, 1.9, fMono, navy, 'right');
+      line(x0, 14.6, x1, 14.6, navy, .3);
+      const shapes = ['circle', 'heart', 'star', 'flower', 'arch', 'sparkle', 'cloud', 'drop'];
+      final col0 = x0 + 25.0, colW = (x1 - col0) / 7;
+      for (var k = 0; k < 7; k++) {
+        t('mtwtfss'[k], col0 + (k + .5) * colW, 20, 500, 2.4, fArch, navy, 'center');
+      }
+      for (var row = 0; row < 8; row++) {
+        final y = 25.0 + row * 8.2;
+        line(x0, y + 3, col0 - 2.5, y + 3, gridc, .15);
+        for (var k = 0; k < 7; k++) {
+          drawShape(c, shapes[row], (col0 + (k + .5) * colW) * s, (y + 1.6) * s, 1.45 * s, stroke(navy, .2));
+        }
+      }
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x0 * s, 92.4 * s, 11 * s, 4.6 * s), Radius.circular(2.3 * s)), Paint()..color = navy);
+      t('goal', x0 + 5.5, 95.6, 600, 2.3, fArch, Colors.white, 'center');
+      line(x0 + 13, 96.6, x1, 96.6, gridc, .15);
+    case 'routine':
+      t(days[i], x0, 11.6, 500, 6.4, fArch, navy);
+      t(fmtD(d), x1, 11.6, 400, 2.5, fArch, navy, 'right');
+      line(x0, 14.6, x1, 14.6, navy, .3);
+      const parts = ['morning', 'afternoon', 'evening'];
+      for (var k = 0; k < 3; k++) {
+        final top = 18.5 + k * 23;
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x0 * s, top * s, 5 * s, 20 * s), Radius.circular(2.5 * s)), stroke(navy, .25));
+        vt(parts[k], x0 + 3.3, top + 10, 400, 2.2, fArch, navy, 'center');
+        for (var r = 0; r < 3; r++) {
+          final y = top + 4.5 + r * 6.2;
+          c.drawCircle(Offset((x0 + 8.6) * s, y * s), .9 * s, stroke(navy, .2));
+          line(x0 + 11, y + .9, x1, y + .9, gridc, .15);
+        }
+      }
+      t('water', x0, 94.2, 400, 2.4, fArch, navy);
+      for (var k = 0; k < 8; k++) {
+        drawShape(c, 'drop', (x0 + 13 + k * 6.6) * s, (93 * s), 1.35 * s, stroke(navy, .2));
+      }
+    case 'checklist':
+      t(days[i], x0, 11.6, 500, 6.4, fArch, navy);
+      t(fmtD(d), x1, 11.6, 400, 2.5, fArch, navy, 'right');
+      line(x0, 14.6, x1, 14.6, navy, .3);
+      t('check list', x0, 20.4, 400, 2.4, fArch, navy);
+      for (var k = 0; k < 11; k++) {
+        final y = 23 + k * 5.6;
+        box(x0, y, 2.6, 2.6, navy, .2);
+        line(x0 + 4.6, y + 2.6, x1, y + 2.6, gridc, .15);
+      }
+      line(x0, 87.4, x1, 87.4, navy, .15);
+      t('mood', x0, 93.2, 400, 2.4, fArch, navy);
+      for (var k = 0; k < 5; k++) {
+        drawFace(c, k, (x0 + 17 + k * 10.6) * s, 92.4 * s, 2.3 * s, stroke(navy, .2)..strokeCap = StrokeCap.round);
       }
   }
 

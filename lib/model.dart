@@ -14,8 +14,10 @@ const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const mons = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 /// Layout ids and names, cover first then day pages.
-const coverLayouts = [('blank', 'Blank'), ('thisweek', 'This week')];
-const dayLayouts = [('daily', 'Daily'), ('gridnote', 'Grid note'), ('drafting', 'Drafting'), ('modular', 'Modular')];
+const coverLayouts = [('blank', 'Blank'), ('thisweek', 'This week'), ('weekly', 'Weekly'), ('habits', 'Habits')];
+const dayLayouts = [
+  ('daily', 'Daily'), ('gridnote', 'Grid note'), ('drafting', 'Drafting'), ('modular', 'Modular'), ('routine', 'Routine'), ('checklist', 'Check list'),
+];
 
 /// Built-in stickers: asset name -> width/height aspect.
 const builtinStickers = {'star': 1.0, 'heart': 1.0, 'cloud': 1.3, 'tape': 3.0, 'sparkle': 1.0, 'bunny': .85};
