@@ -554,7 +554,7 @@ class _EditorState extends State<Editor> {
       ),
       const SizedBox(height: 8),
       Wrap(spacing: 14, runSpacing: 4, children: [
-        for (final t in ['A4', 'single-sided', 'spine margin 6mm', 'edge margin 4mm'])
+        for (final t in ['A4', 'single-sided', 'spine margin 6mm', 'edge margin 8mm'])
           Text(t, style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w500, fontSize: 11.5, color: z.muted)),
       ]),
     ]);

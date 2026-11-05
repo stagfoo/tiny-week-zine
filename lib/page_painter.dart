@@ -11,6 +11,11 @@ const lilac = Color(0xFFB3A5DF), faint = Color(0xFF8B83A6);
 const fArch = 'Archivo', fMono = 'PlexMono';
 const lh = 3.7;
 
+/// Printers can't reach the paper edge and drift a few mm, so each layout is
+/// drawn shrunk toward its spine and the middle fold. That leaves at least
+/// 8mm clear on the sheet's outer edges while the panels stay full size.
+const printSafe = .93;
+
 /// Odd pages have the spine on the left.
 ({double l, double r}) margins(int pn) => pn.isOdd ? (l: 6, r: 4) : (l: 4, r: 6);
 
@@ -204,6 +209,11 @@ void drawPage(Canvas c, int pn, ZPage pg, double s, List<DateTime> ds,
   final lay = layoutOverride ?? pg.layout ?? (pn == 1 ? 'blank' : 'daily');
   final i = pn - 2;
   final d = i >= 0 ? ds[i] : ds[0];
+  final spineX = (pn.isOdd ? m.l : pw - m.r) * s;
+  c.save();
+  c.translate(spineX, 0);
+  c.scale(printSafe);
+  c.translate(-spineX, 0);
 
   switch (lay) {
     case 'blank':
@@ -314,15 +324,16 @@ void drawPage(Canvas c, int pn, ZPage pg, double s, List<DateTime> ds,
       }
   }
 
+  if (pn != 1) t('$pn', pn.isOdd ? x1 : x0, 103.6, 500, 1.9, fMono, faint, pn.isOdd ? 'right' : 'left');
+  c.restore();
+
   if (pn == 1) {
-    // Staple marks on the cover, by the spine.
+    // Staple marks on the cover, by the spine. Not shrunk: they belong to the spine.
     for (final y in [24.0, 81.0]) {
       const x = 2.6, w = .9, h = 6.4;
       final r = RRect.fromRectAndRadius(Rect.fromLTWH(x * s, (y - h / 2) * s, w * s, h * s), Radius.circular(.45 * s));
       c.drawPath(dashed(Path()..addRRect(r), .6 * s, .5 * s), stroke(lilac, .25));
     }
-  } else {
-    t('$pn', pn.isOdd ? x1 : x0, 103.6, 500, 1.9, fMono, faint, pn.isOdd ? 'right' : 'left');
   }
 
   if (stickers != null) {
@@ -385,11 +396,11 @@ Future<ui.Image> renderSheet(List<ZPage> week, List<DateTime> ds, Images images,
     ..strokeWidth = .3 * s;
   void ln(double ax, double ay, double bx, double by, Paint p) => c.drawLine(Offset(ax * s, ay * s), Offset(bx * s, by * s), p);
   for (final x in [pw, pw * 2, pw * 3]) {
-    ln(x, 4, x, 7, st(lilac));
-    ln(x, 203, x, 206, st(lilac));
+    ln(x, 7, x, 10, st(lilac));
+    ln(x, 200, x, 203, st(lilac));
   }
-  ln(4, ph, 7, ph, st(lilac));
-  ln(290, ph, 293, ph, st(lilac));
+  ln(7, ph, 10, ph, st(lilac));
+  ln(287, ph, 290, ph, st(lilac));
   c.drawPath(dashed(Path()..moveTo(pw * s, ph * s)..lineTo(pw * 3 * s, ph * s), 2 * s, 1.4 * s), st(pink)..strokeWidth = .35 * s);
   final cut = TextPainter(
       text: TextSpan(text: 'CUT', style: TextStyle(fontFamily: fMono, fontWeight: FontWeight.w600, fontSize: 1.8 * s, color: pink, height: 1)),
