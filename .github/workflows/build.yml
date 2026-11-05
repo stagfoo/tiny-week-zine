@@ -105,3 +105,25 @@ jobs:
           done
           mkdir -p mac && mv dist/macos "mac/Tiny Week Zine.app"
           ./butler/butler push mac "${{ vars.ITCH_GAME }}:mac" --userversion "$v"
+
+  # On a version tag, publish a GitHub release shaped for Obtainium: the tag is
+  # exactly the pubspec version (no "v"), with exactly one APK attached.
+  release:
+    needs: android
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tag must match pubspec version
+        run: |
+          v=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
+          [ "$v" = "${GITHUB_REF_NAME}" ] || { echo "Tag ${GITHUB_REF_NAME} != pubspec $v"; exit 1; }
+      - uses: actions/download-artifact@v7
+        with: { name: android, path: out }
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release create "$GITHUB_REF_NAME" out/tiny-week-zine.apk \
+            --title "Tiny Week Zine $GITHUB_REF_NAME" \
+            --notes "$(git log -1 --pretty=%s)"

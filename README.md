@@ -15,6 +15,12 @@ Android applicationId: `com.stagfoo.tiny_week_zine`.
 - `.github/workflows/build.yml` (run by hand, or by pushing a tag) builds web,
   Android, Linux, Windows and macOS. Desktop builds need CI: this PC has no cmake.
 
+## Releases and Obtainium
+Bump `version:` in `pubspec.yaml` (both parts, e.g. `1.0.1+2`), commit, then
+`git tag 1.0.1 && git push origin main 1.0.1`. CI builds everything and
+publishes a GitHub release with one APK, which Obtainium picks up from
+`https://github.com/stagfoo/tiny-week-zine` (the repo must be public).
+
 ## itch.io
 One project, **Kind of project: HTML**, with these uploads:
 
