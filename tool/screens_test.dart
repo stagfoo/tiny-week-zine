@@ -51,6 +51,7 @@ void main() {
 
   Future<Widget> app(WidgetTester t, {Widget? home}) async {
     await t.runAsync(_fonts);
+    // ignore: invalid_use_of_visible_for_testing_member
     SharedPreferences.setMockInitialValues({});
     await t.runAsync(() async {
       store = await ZineStore.open();
