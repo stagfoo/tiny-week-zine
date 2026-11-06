@@ -99,4 +99,23 @@ void main() {
     expect(store.week[1].stickers.last.src, 's:circle');
     await t.pump(const Duration(seconds: 1));
   });
+
+  testWidgets("if book images can't be reached, the tab says so and nothing else breaks", (t) async {
+    await boot(t);
+    await t.tap(find.text('BOOK IMAGES'));
+    await t.pump();
+    await t.tap(find.text('CAT'));
+    for (var i = 0; i < 10 && find.textContaining("aren't reachable").evaluate().isEmpty; i++) {
+      await t.runAsync(() => Future.delayed(const Duration(milliseconds: 100)));
+      await t.pump();
+    }
+    expect(find.textContaining("aren't reachable"), findsOneWidget);
+    // The rest of the editor still works.
+    await t.tap(find.text('BUNNY'));
+    await t.pump();
+    await t.tap(find.text('BOX'));
+    await t.pump();
+    expect(store.week[1].stickers.last.src, 's:box');
+    await t.pump(const Duration(seconds: 1));
+  });
 }

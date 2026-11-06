@@ -62,6 +62,9 @@ crease, make one cut, fold, and you're holding a tiny booklet for the week.
 - **Days:** Daily · Grid note · Drafting · Modular · Routine · Check list
 - **187 stickers** in 13 packs (bunnies, cats, mushrooms, fries, witches,
   planner bits), drawn by me, plus any picture of your own
+- **Text boxes** in any Google Font, and **shapes**: boxes, circles, lines, arrows
+- **Black-and-white dithering** for pictures, for a photocopied look
+- **Book images:** search public domain illustrations from the Internet Archive
 - Pages print blank, ready for pen
 
 ### PRINTING

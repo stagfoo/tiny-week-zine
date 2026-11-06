@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'book_images.dart';
 import 'images.dart';
 import 'main.dart';
 import 'model.dart';
@@ -52,6 +53,11 @@ class _EditorState extends State<Editor> {
   TextEditingController _tc = TextEditingController(); // words of the selected text box
   String? _tcFor;
   Timer? _wheelT;
+  // Book images: optional, online only when you search.
+  final _bookQ = TextEditingController();
+  List<BookImage>? _books;
+  String? _bookErr;
+  bool _bookBusy = false;
 
   @override
   void initState() {
@@ -493,9 +499,97 @@ class _EditorState extends State<Editor> {
     );
   }
 
-  List<String> _packKeys() => pack == 'yours'
-      ? [for (final id in st.lib.keys.toList().reversed) 'u:$id']
-      : [for (final (n, _) in stickerPacks.firstWhere((p) => p.$1 == pack).$3) 'b:$pack/$n'];
+  List<String> _packKeys() => switch (pack) {
+        'yours' => [for (final id in st.lib.keys.toList().reversed) 'u:$id'],
+        'books' => const [],
+        _ => [for (final (n, _) in stickerPacks.firstWhere((p) => p.$1 == pack).$3) 'b:$pack/$n'],
+      };
+
+  static const _offline = 'Book images aren\'t reachable right now. Everything else works as normal.';
+
+  Future<void> _searchBooks(String q) async {
+    q = q.trim();
+    if (q.isEmpty) return;
+    _bookQ.text = q;
+    setState(() {
+      _bookBusy = true;
+      _bookErr = null;
+    });
+    try {
+      final hits = await searchBookImages(q);
+      if (!mounted) return;
+      setState(() {
+        _books = hits;
+        _bookErr = hits.isEmpty ? 'Nothing found for "$q". Try a simpler word.' : null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _bookErr = _offline);
+    } finally {
+      if (mounted) setState(() => _bookBusy = false);
+    }
+  }
+
+  /// Copies a book image into your own images, then places it.
+  Future<void> _addBook(BookImage b) async {
+    toast(context, 'Adding “${b.title.length > 40 ? '${b.title.substring(0, 40)}…' : b.title}”');
+    try {
+      final k = await widget.images.import(await downloadBookImage(b), 'book.jpg');
+      if (!mounted) return;
+      if (k == null) throw Exception('decode');
+      addSticker(k, st.lib[k.substring(2)]!);
+    } catch (_) {
+      if (mounted) toast(context, _offline);
+    }
+  }
+
+  Widget _booksPanel(Zc z) {
+    final border = OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: z.line));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        Expanded(
+          child: TextField(
+            controller: _bookQ,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _searchBooks,
+            style: TextStyle(color: z.fg, fontSize: 14),
+            decoration: InputDecoration(isDense: true, hintText: 'Search old book illustrations', border: border, enabledBorder: border, focusedBorder: border),
+          ),
+        ),
+        const SizedBox(width: 6),
+        GhostButton(label: 'Search', onTap: () => _searchBooks(_bookQ.text)),
+      ]),
+      const SizedBox(height: 8),
+      Wrap(spacing: 6, runSpacing: 6, children: [for (final w in bookImageIdeas) _tag(z, w, _bookQ.text == w, () => _searchBooks(w))]),
+      const SizedBox(height: 10),
+      if (_bookBusy) Text('SEARCHING…', style: monoLabel(z)),
+      if (_bookErr != null) Text(_bookErr!, style: TextStyle(color: z.muted, fontSize: 13, height: 1.4)),
+      if (!_bookBusy && _books != null && _books!.isNotEmpty)
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final b in _books!)
+            Semantics(
+              button: true,
+              label: 'Add ${b.title}',
+              child: Tooltip(
+                message: b.title,
+                child: InkWell(
+                  onTap: () => _addBook(b),
+                  child: Container(
+                    width: 84,
+                    height: 84,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: z.soft)),
+                    child: Image.network(b.thumb, fit: BoxFit.contain, errorBuilder: (_, _, _) => const SizedBox()),
+                  ),
+                ),
+              ),
+            ),
+        ]),
+      const SizedBox(height: 10),
+      Text('Public domain illustrations from the Internet Archive Book Images collection, via Wikimedia Commons. '
+          'Added pictures are saved with your zine.',
+          style: monoLabel(z, size: 9.5)),
+    ]);
+  }
 
   void _openPack(String id) {
     setState(() => pack = id);
@@ -518,7 +612,7 @@ class _EditorState extends State<Editor> {
   Widget _panel(Zc z) {
     final ds = st.dates;
     final curLay = page.layout ?? (cur > 0 ? 'daily' : 'blank');
-    final packs = [if (st.lib.isNotEmpty) ('yours', 'Yours'), for (final p in stickerPacks) (p.$1, p.$2)];
+    final packs = [if (st.lib.isNotEmpty) ('yours', 'Yours'), for (final p in stickerPacks) (p.$1, p.$2), ('books', 'Book images')];
     final keys = _packKeys();
     final desktop = kIsWeb ||
         defaultTargetPlatform == TargetPlatform.linux ||
@@ -590,11 +684,11 @@ class _EditorState extends State<Editor> {
       const SizedBox(height: 16),
       Section(
         label: 'Stickers',
-        meta: '${keys.length} in ${packs.firstWhere((p) => p.$1 == pack, orElse: () => packs.first).$2}',
+        meta: pack == 'books' ? 'internet archive' : '${keys.length} in ${packs.firstWhere((p) => p.$1 == pack, orElse: () => packs.first).$2}',
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Wrap(spacing: 6, runSpacing: 6, children: [for (final (id, name) in packs) _tag(z, name, id == pack, () => _openPack(id))]),
           const SizedBox(height: 12),
-          Wrap(spacing: 6, runSpacing: 6, children: [
+          if (pack == 'books') _booksPanel(z) else Wrap(spacing: 6, runSpacing: 6, children: [
             Semantics(
               button: true,
               label: 'Add your own image',
